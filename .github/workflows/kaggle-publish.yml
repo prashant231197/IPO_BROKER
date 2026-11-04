@@ -1,0 +1,36 @@
+name: kaggle-publish
+
+# Scheduled runs moved to the Oracle VM (automation/vm/, systemd timer, 20:00 IST):
+# GitHub's cron started this 4.5-6 h late every day, and a VM run can take as long as
+# a full RHP backfill needs. This stays as a manual fallback (Actions -> Run workflow).
+# Don't re-add a schedule while the VM timer is on: both would commit the same files.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kaggle-publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Publish dataset to Kaggle
+        run: |
+          if [ -z "$KAGGLE_API_TOKEN" ]; then
+            echo "::notice::KAGGLE_API_TOKEN secret not set — skipping publish."
+            exit 0
+          fi
+          pip install --quiet kagglehub
+          python automation/kaggle_publish.py

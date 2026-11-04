@@ -1,0 +1,456 @@
+"""Listing-day and hype-cycle forecast from RHP-only features.
+
+Predicts, before listing and without any market data (no GMP, no subscription
+numbers — those don't exist inside an RHP):
+  1. listing-open premium vs offer price (point + range),
+  2. whether/when the stock falls below the offer price after listing hype,
+  3. the likely bottom window ("when does it stop falling") — the user-facing
+     "optimal entry" heuristic, anchored on SEBI lock-in expiries,
+  4. when it recovers above the offer and listing prices.
+
+Two engines:
+  rules — transparent bands from the score/valuation/risk/OFS profile plus
+          the market-structure calendar (anchor lock-ins end at 30 and 90
+          days ≈ sessions 20 and 60; pre-IPO/promoter lock-in at 6 months
+          ≈ session 125).
+  llm   — same features, anonymized (no names), sent to the AI layer.
+
+All outputs are research heuristics with wide error bars, not trade advice.
+"""
+from __future__ import annotations
+
+import json
+import math
+import re
+from pathlib import Path
+
+from . import llm_layer
+
+SIGNALS_MODEL_PATH = Path(__file__).resolve().parent.parent / "listing_model_signals.json"
+HORIZON_MODEL_PATH = Path(__file__).resolve().parent.parent / "horizon_model.pkl"
+_horizon_cache: dict = {}
+
+# The RHP bucket (all we can know before a company lists — there is no Yahoo profile yet)
+# mapped into the ONE sector vocabulary both models are trained on. automation/
+# backfill_sectors.py labels the training rows through this same map, so train and serve
+# agree. Sector is the strongest single signal in the data: median 24-month return runs
+# from +42% (Technology) to -20% (Real Estate).
+_SHEET_SECTOR = {"insurance": "Financials", "asset_management": "Financials",
+                 "fin_services": "Financials", "consumer": "Consumer Discretionary",
+                 "pharma_health": "Healthcare", "energy_infra": "Energy",
+                 "industrial": "Industrials", "workspace_realty": "Real Estate",
+                 "tech_platform": "Technology"}
+
+
+def sector_of(report: dict) -> str:
+    """The report's sector in the models' vocabulary ('Other' if the RHP gives us nothing)."""
+    return _SHEET_SECTOR.get(features_from_report(report).get("sector"), "Other")
+
+
+def structure_of(sector: str) -> dict:
+    """What KIND of company, which is not the same question as which sector.
+
+    Lenders and property companies read differently on the same numbers — leverage IS a
+    bank's business model, and P/B rather than P/E is what prices it — so the models get
+    an explicit flag instead of having to infer it from ratios that mean opposite things
+    in different structures."""
+    return {"is_financial": 1.0 if sector == "Financials" else 0.0,
+            "is_realestate": 1.0 if sector == "Real Estate" else 0.0}
+
+SECTOR_BUCKETS = [
+    ("insurance", r"insurance|policyholder"),
+    ("asset_management", r"asset management|mutual fund|aum"),
+    ("fin_services", r"broking|lending|nbfc|fintech|financial products|investment platform"),
+    ("consumer", r"consumer|retail|food|beverage|fmcg|apparel|eyewear|appliances|electronics"),
+    ("pharma_health", r"pharma|drug|formulation|clinical|hospital|diagnostic"),
+    ("energy_infra", r"solar|renewable|power|energy|epc|infrastructure|construction"),
+    ("industrial", r"manufactur|engineering|granite|mining|chemical|textile|packaging"),
+    ("workspace_realty", r"workspace|real estate|leasing|coworking"),
+    ("tech_platform", r"platform|technology|software|digital|e-commerce|online"),
+]
+
+
+def features_from_report(report: dict) -> dict:
+    """RHP-only, identity-free feature vector."""
+    sc = report.get("scoring") or {}
+    cats = sc.get("categories") or {}
+    snap = report.get("snapshot") or {}
+    risk = report.get("risk") or {}
+    val = report.get("valuation") or {}
+    forensic = report.get("forensic") or {}
+
+    fresh = snap.get("fresh_issue_cr") or 0
+    ofs = snap.get("ofs_cr") or 0
+    total = snap.get("total_issue_cr") or (fresh + ofs) or None
+    ofs_share = round(ofs / (fresh + ofs), 2) if (fresh + ofs) > 0 else None
+
+    excerpt = ((report.get("industry") or {}).get("excerpt") or "").lower()
+    sector = next((name for name, pat in SECTOR_BUCKETS if re.search(pat, excerpt)), "other")
+
+    def cat_score(k):
+        v = (cats.get(k) or {}).get("score")
+        return round(v, 1) if isinstance(v, (int, float)) else None
+
+    return {
+        "overall_score": sc.get("overall"),
+        "growth_score": cat_score("growth"),
+        "cash_generation_score": cat_score("cash_generation"),
+        "financial_health_score": cat_score("financial_health"),
+        "risk_score": risk.get("score"),
+        "forensic_flag_count": len(forensic.get("flags") or []),
+        "valuation_relative_pe": val.get("relative"),  # issuer PE / peer median, often None
+        "valuation_call": val.get("call"),
+        "ofs_share": ofs_share,
+        "issue_size_cr_log": round(math.log10(total), 2) if total else None,
+        "sector": sector,
+        "loss_making": (cat_score("growth") or 50) < 40 and (cat_score("cash_generation") or 50) < 40,
+        "listing_window": "H2-2025/H1-2026 Indian primary market",
+    }
+
+
+def rule_forecast(f: dict) -> dict:
+    """Transparent heuristic bands. Session ≈ trading day (~21/month)."""
+    score = f.get("overall_score") or 50
+    rel = f.get("valuation_relative_pe")
+    overvalued = (f.get("valuation_call") in ("overvalued", "fairly_valued_expensive")) or (rel or 0) > 1.3
+    big_ofs = (f.get("ofs_share") or 0) >= 0.7
+    mega = (f.get("issue_size_cr_log") or 0) >= 3.7  # ≥ ~₹5,000 cr
+
+    # 1 — listing premium: hype pays for quality, discounts stretched pricing
+    prem = 6.0
+    prem += (score - 60) * 0.45          # fundamentals signal
+    prem -= 8.0 if overvalued else 0.0
+    prem -= 4.0 if big_ofs else 0.0      # pure-exit offers get less hype
+    prem -= 3.0 if mega else 0.0         # large float absorbs demand
+    prem = max(-8.0, min(35.0, prem))
+
+    # 2 — hype decay: does it break the offer price, and when
+    if score >= 72 and not overvalued:
+        below = {"probability": 0.25, "window_sessions": [1, 10],
+                 "expected_depth_pct": -5,
+                 "note": "strong docs usually only lose the offer price briefly, if at all"}
+        bottom = {"window_sessions": [0, 12], "depth_vs_offer_pct": [-8, 5],
+                  "note": "any bottom forms in the first fortnight; weakness is shallow"}
+        recover = {"above_offer_sessions": [1, 20], "above_listing_sessions": [5, 60]}
+    elif score >= 60 and not overvalued:
+        below = {"probability": 0.6, "window_sessions": [5, 45],
+                 "expected_depth_pct": -15,
+                 "note": "fade typically starts once anchor lock-in ends (~session 20)"}
+        bottom = {"window_sessions": [40, 90], "depth_vs_offer_pct": [-25, -5],
+                  "note": "second anchor unlock (~session 60) is the usual capitulation zone"}
+        recover = {"above_offer_sessions": [70, 160], "above_listing_sessions": [90, 250]}
+    else:
+        below = {"probability": 0.85, "window_sessions": [0, 25],
+                 "expected_depth_pct": -30,
+                 "note": "weak/overpriced docs lose the offer price quickly once hype allocation churns"}
+        bottom = {"window_sessions": [60, 130], "depth_vs_offer_pct": [-55, -15],
+                  "note": "slide usually runs into the 6-month pre-IPO lock-in expiry (~session 125)"}
+        recover = {"above_offer_sessions": [150, 400], "above_listing_sessions": None,
+                   "note": "may not reclaim the listing price within the first year"}
+
+    return {"engine": "rules",
+            "listing_open_premium_pct": {"point": round(prem, 1),
+                                         "range": [round(prem - 8, 1), round(prem + 10, 1)]},
+            "falls_below_offer": below, "bottom": bottom, "recovery": recover}
+
+
+LLM_SYSTEM = (
+    "You are a quantitative analyst of Indian IPO market microstructure. You are given an "
+    "ANONYMIZED feature vector extracted from a red herring prospectus — you do not know "
+    "which company it is, and you must not try to guess or use knowledge of specific IPOs. "
+    "Reason only from base rates you know about Indian primary markets (listing-pop hype, "
+    "anchor lock-in expiries at 30/90 days, pre-IPO lock-in at 6 months, OFS overhang, "
+    "segment effects) and from the features given. Output STRICT JSON only, no prose, "
+    "matching exactly this schema: "
+    '{"listing_open_premium_pct": {"point": float, "range": [lo, hi]}, '
+    '"falls_below_offer": {"probability": 0..1, "window_sessions": [lo, hi], "expected_depth_pct": float}, '
+    '"bottom": {"window_sessions": [lo, hi], "depth_vs_offer_pct": [lo, hi]}, '
+    '"recovery": {"above_offer_sessions": [lo, hi] or null, "above_listing_sessions": [lo, hi] or null}, '
+    '"reasoning": "one short sentence"}. Sessions are trading days after listing (~21/month).'
+)
+
+
+def llm_forecast(f: dict) -> dict | None:
+    if not llm_layer.llm_available():
+        return None
+    text = llm_layer._ask(LLM_SYSTEM, json.dumps(f, ensure_ascii=False), max_tokens=800)
+    if not text:
+        return None
+    try:
+        m = re.search(r"\{.*\}", text, re.S)
+        out = json.loads(m.group(0) if m else text)
+        out["engine"] = "llm"
+        return out
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
+def signals_forecast(report: dict, signals: dict | None = None) -> dict | None:
+    """The pre-listing call, from GMP + subscription + fundamentals + structure.
+
+    Two heads, and normally only one of them exists. DIRECTION — will it list above the
+    offer price — is a real call: ~76% right against a ~71% majority baseline, correct in
+    every fold. MAGNITUDE — how big the pop will be — is not: it barely beats predicting
+    the average and sits well inside the noise, so the trainer does not ship it and this
+    function returns no number for it. Which way, not how far.
+
+    Missing inputs fall back to training medians, so it degrades gracefully — but it is
+    only worth reading once real subscription/GMP numbers have been posted."""
+    if not SIGNALS_MODEL_PATH.exists():
+        return None
+    model = json.loads(SIGNALS_MODEL_PATH.read_text())
+    x = dict(model["medians"])
+    used = []
+    s = signals or report.get("market_signals") or {}
+    snap = report.get("snapshot") or {}
+    band = snap.get("price_band") or [None, None]
+    if s.get("gmp") and band[1]:
+        x["gmp_prem"] = max(-30.0, min(150.0, s["gmp"] / band[1] * 100))
+        used.append("gmp")
+    for src, feat in (("sub_qib", "log_QIB"), ("sub_nii", "log_bNII"), ("sub_rii", "log_Retail")):
+        if s.get(src) is not None:
+            x[feat] = math.log1p(max(s[src], 0))
+            used.append(src)
+    ratios = (report.get("financials") or {}).get("ratios") or {}
+    if ratios.get("roe") is not None:
+        x["ROE"] = ratios["roe"] * 100
+        used.append("roe")
+    if ratios.get("net_margin") is not None:
+        x["PAT Margin"] = ratios["net_margin"] * 100
+        used.append("net_margin")
+    pe = (report.get("valuation") or {}).get("issuer_pe")
+    if pe:
+        x["Post IPO P/E"] = pe
+        used.append("issuer_pe")
+    sector = sector_of(report)
+    for k in x:
+        if k.startswith("sec_"):
+            x[k] = 0.0
+    if f"sec_{sector}" in x:                    # older artifacts carried sector dummies
+        x[f"sec_{sector}"] = 1.0
+    for k, v in structure_of(sector).items():
+        if k in x:
+            x[k] = v
+            used.append("company_structure")
+
+    def score(head):
+        return head["intercept"] + sum(head["coef"].get(k, 0.0) * v for k, v in x.items())
+
+    out = {"engine": "ml_signals", "trained_on_n": model["n"],
+           "cv": model.get("cv", "time-ordered"),
+           "inputs_used": sorted(set(used)) or ["training medians only — post market-signals to sharpen"]}
+
+    direction = model.get("direction")
+    if direction:
+        p = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, score(direction)))))
+        out["p_lists_above_offer"] = round(p, 2)
+        out["cv_direction_acc"] = round(direction["cv_acc"], 2)
+        out["cv_direction_baseline"] = round(direction["baseline_acc"], 2)
+
+    magnitude = model.get("magnitude")
+    if magnitude:
+        out["forecast_listing_gain_pct_vs_offer"] = round(score(magnitude), 1)
+        out["cv_mae_pp"] = round(magnitude["cv_mae"], 1)
+        out["baseline_mae_pp"] = round(magnitude["baseline_mae"], 1)
+    else:
+        out["no_magnitude"] = (
+            "No point estimate: the SIZE of a listing pop does not beat a mean baseline "
+            "out-of-sample, so we do not print a number for it. The direction call is the "
+            "one that survived validation.")
+
+    out["note"] = ("Cross-validated forward in time — trained only on IPOs that listed "
+                   "before the ones it was scored on.")
+    return out if (direction or magnitude) else None
+
+
+def _load_horizon_model():
+    if "m" not in _horizon_cache:
+        if not HORIZON_MODEL_PATH.exists():
+            _horizon_cache["m"] = None
+        else:
+            import joblib
+            _horizon_cache["m"] = joblib.load(HORIZON_MODEL_PATH)
+    return _horizon_cache["m"]
+
+
+def horizon_forecast(report: dict, signals: dict | None = None) -> dict | None:
+    """6m/12m/24m return + entry/exit forecast from the GBMs (automation/retrain.py).
+
+    Two variants exist and the right one is picked by whether the stock has actually
+    listed. Day-1 listing gain is a powerful feature for later returns and it simply
+    does not exist before listing — the old single model was trained with it always
+    present and then median-filled it at serve time, which meant its quoted accuracy
+    described a situation the product never faces.
+
+    Only heads that beat a mean/majority baseline out-of-sample, forward in time, are
+    in the artifact at all. So the shape of this output varies on purpose: before
+    listing there is NO 6m/12m/24m return forecast, because no model we could build
+    beats simply guessing the average — not on magnitude, not even on direction. We
+    say nothing rather than dress up noise as a number."""
+    model = _load_horizon_model()
+    if not model:
+        return None
+    s = signals or report.get("market_signals") or {}
+    listed = s.get("day1_gain") is not None
+    if "variants" in model:                       # schema 2
+        var = model["variants"]["post" if listed else "pre"]
+        variant = "post" if listed else "pre"
+    else:                                         # legacy single-variant artifact
+        var, variant = model, "legacy"
+
+    f = features_from_report(report)
+    sc = report.get("scoring") or {}
+    cats = sc.get("categories") or {}
+
+    def cat(k):
+        v = (cats.get(k) or {}).get("score")
+        return v if isinstance(v, (int, float)) else None
+
+    x = dict(var["medians"])
+    used = []
+    for src, feat in (("sub_qib", "log_QIB"), ("sub_bnii", "log_bNII"),
+                      ("sub_snii", "log_sNII"), ("sub_nii", "log_NII"),
+                      ("sub_rii", "log_Retail")):
+        if s.get(src) is not None:
+            x[feat] = math.log1p(max(s[src], 0))
+            used.append(src)
+    if s.get("sub_nii") is None and s.get("sub_bnii") is not None and s.get("sub_snii") is not None:
+        x["log_NII"] = math.log1p(max((s["sub_bnii"] + s["sub_snii"]) / 2, 0))
+    band = (report.get("snapshot") or {}).get("price_band") or [None, None]
+    if s.get("gmp") is not None and band[1]:
+        x["gmp_prem"] = max(-30.0, min(150.0, s["gmp"] / band[1] * 100))
+        x["has_gmp"] = 1.0
+        used.append("gmp")
+    else:
+        x["has_gmp"] = 0.0
+    if s.get("day1_gain") is not None:
+        x["listing_gain_day1"] = max(-80.0, min(400.0, s["day1_gain"]))
+        used.append("day1_gain")
+    snap = report.get("snapshot") or {}
+    total = snap.get("total_issue_cr") or ((snap.get("fresh_issue_cr") or 0) +
+                                           (snap.get("ofs_cr") or 0)) or None
+    if total:
+        x["issue_size_log"] = math.log10(max(total, 1))
+        used.append("issue_size")
+    if f.get("ofs_share") is not None:
+        x["ofs_share"] = f["ofs_share"]
+    rhp_map = {"rhp_overall": sc.get("overall"), "rhp_growth": cat("growth"),
+               "rhp_cash": cat("cash_generation"), "rhp_finhealth": cat("financial_health"),
+               "rhp_governance": cat("governance"), "rhp_promoter": cat("promoter_quality"),
+               "rhp_risk": (report.get("risk") or {}).get("score"),
+               "rhp_forensic_flags": len((report.get("forensic") or {}).get("flags") or [])}
+    x["has_rhp"] = 1.0
+    for k, v in rhp_map.items():
+        if v is not None:
+            x[k] = float(v)
+    used.append("rhp_features")
+    sector = sector_of(report)
+    for sec in model.get("sectors", []):
+        x[f"sec_{sec}"] = 1.0 if sector == sec else 0.0
+    x.update(structure_of(sector))
+    if sector != "Other":
+        used.append(f"sector:{sector}")
+
+    import pandas as pd
+    names = var["feature_names"]
+    vec = pd.DataFrame([[x.get(n, 0.0) for n in names]], columns=names)
+    cvs = var.get("cv") or {}
+    out = {"engine": "ml_horizons", "variant": variant, "inputs_used": used,
+           "horizons": {}, "cv": cvs}
+
+    preds = {}
+    for target, mod in var["models"].items():
+        p = float(mod.predict(vec)[0])
+        rb = (var.get("residual_base") or {}).get(target)
+        if rb:                       # the post-listing return models predict the CORRECTION
+            p += float(x.get(rb, 0.0))   # to day-1 carry, so add the carry back
+        preds[target] = p
+    for target, clf in (var.get("classifiers") or {}).items():
+        preds[target + "_p_pos"] = float(clf.predict_proba(vec)[0][1])
+
+    # A horizon appears only if SOMETHING about it survived validation. Magnitude and
+    # direction are separate heads: pre-listing we can often say neither, post-listing
+    # we can usually say both for 6m. An absent key means "we have no skill here",
+    # which is information — not a rendering bug.
+    skipped = []
+    for h, label in (("ret_6m", "6m"), ("ret_12m", "12m"), ("ret_24m", "24m")):
+        box = {}
+        if h in preds:
+            box["ret_pct_vs_offer"] = round(preds[h], 1)
+            box["cv_mae_pp"] = (cvs.get(h) or {}).get("mae")
+            box["cv_baseline_mae_pp"] = (cvs.get(h) or {}).get("baseline_mean_mae")
+        if h + "_p_pos" in preds:
+            box["p_above_offer"] = round(preds[h + "_p_pos"], 2)
+            box["cv_direction_acc"] = (cvs.get(h) or {}).get("direction_acc")
+        if box:
+            out["horizons"][label] = box
+        else:
+            skipped.append(label)
+    if skipped:
+        out["no_skill"] = {
+            "horizons": skipped,
+            "why": ("No model beat a mean/majority baseline out-of-sample for these, so no "
+                    "number is shown. Before an IPO lists, its 6m/12m/24m outcome is simply "
+                    "not predictable from the prospectus and the order book — neither the "
+                    "size of the move nor its direction."
+                    if variant == "pre" else
+                    "No model beat a mean/majority baseline out-of-sample at these horizons, "
+                    "so no number is shown. Once a stock is trading, its day-1 gain makes the "
+                    "6-month outcome partly predictable; beyond that the signal runs out.")}
+
+    entry = {}
+    if "bottom_12m_pct" in preds:
+        entry["expected_bottom_depth_pct_vs_offer"] = round(preds["bottom_12m_pct"], 1)
+        entry["cv_mae_pp"] = (cvs.get("bottom_12m_pct") or {}).get("mae")
+    if "sessions_to_bottom" in preds:
+        sess = max(0, int(round(preds["sessions_to_bottom"])))
+        entry["expected_bottom_session"] = sess
+        entry["read"] = ("dips are bought fast; waiting rarely improves entry" if sess <= 10
+                         else f"patience pays: model expects the low around session {sess} "
+                              f"(~{round(sess / 21, 1)} months in)")
+    elif entry:
+        entry["read"] = ("depth is predictable, timing is not — the model has no skill on "
+                         "WHEN the low lands, only how deep it tends to be")
+
+    exit_ = {}
+    ret_opts = {k: v for k, v in (("6m", preds.get("ret_6m")), ("12m", preds.get("ret_12m")),
+                                  ("24m", preds.get("ret_24m"))) if v is not None}
+    if ret_opts:
+        best = max(ret_opts, key=ret_opts.get)
+        if all(v <= 0 for v in ret_opts.values()):
+            exit_ = {"call": "avoid", "note": "no profitable horizon predicted within 2 years"}
+        else:
+            exit_ = {"call": f"hold to ~{best}", "expected_ret_pct": round(ret_opts[best], 1)}
+        if "sessions_to_peak" in preds:
+            exit_["expected_peak_session"] = max(0, int(round(preds["sessions_to_peak"])))
+        if "peak_24m_pct" in preds:
+            exit_["expected_peak_pct_vs_offer"] = round(preds["peak_24m_pct"], 1)
+    out["entry"] = entry
+    out["exit"] = exit_
+    out["note"] = (
+        f"Trained on ~20 years of NSE/BSE mainboard IPOs, cross-validated forward in time: "
+        f"every score comes from IPOs that listed AFTER the ones the model learned from. "
+        f"This is the '{variant}-listing' model"
+        + (" — day-1 listing gain is known, which is a strong feature for later returns."
+           if variant == "post" else
+           " — the stock has not listed, so day-1 gain does not exist as an input.")
+        + " Only forecasts that beat a mean/majority baseline out-of-sample are shown at all;"
+          " where a horizon is missing, the honest answer is that we cannot call it."
+          " Point estimates carry the CV MAE shown, which is large — treat them as bands, not"
+          " numbers. Long-horizon training data skews to survivors.")
+    return out
+
+
+def forecast(report: dict, use_llm: bool = False, signals: dict | None = None) -> dict:
+    f = features_from_report(report)
+    out = {"features": f, "rules": rule_forecast(f),
+           "disclaimer": "Heuristic research output with wide error bars; not investment advice."}
+    sig = signals_forecast(report, signals)
+    if sig:
+        out["ml_signals"] = sig
+    hor = horizon_forecast(report, signals)
+    if hor:
+        out["ml_horizons"] = hor
+    if use_llm:
+        out["llm"] = llm_forecast(f)
+    return out

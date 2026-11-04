@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RHP Analyst — IPO Radar</title>
+<meta name="description" content="Self-updating radar of Indian mainboard IPOs with explainable RHP scores, valuation calls, risk analysis and horizon forecasts. Research & education only — not investment advice.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%232a78d6'/%3E%3Ctext x='8' y='12' font-size='10' text-anchor='middle' fill='white'%3E◆%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --surface-1:#fcfcfb; --page:#f9f9f7; --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --edge:rgba(11,11,11,.1);
+  --accent:#2a78d6; --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --series-1:#2a78d6; --series-2:#1baf7a; --series-3:#eda100; --emphasis:#c3c2b7;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-1:#1a1a19; --page:#0d0d0d; --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --edge:rgba(255,255,255,.1);
+    --accent:#3987e5; --series-1:#3987e5; --series-2:#199e70; --series-3:#c98500; --emphasis:#52514e;
+  }
+}
+* { box-sizing:border-box; margin:0; }
+html { scroll-behavior:smooth; }
+body { background:var(--page); color:var(--ink); font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+.tabular { font-variant-numeric:tabular-nums; }
+.wrap { max-width:72rem; margin:0 auto; padding:0 16px; }
+
+header.top { position:sticky; top:0; z-index:40; border-bottom:1px solid var(--edge);
+  background:color-mix(in srgb, var(--surface-1) 90%, transparent); backdrop-filter:blur(8px); }
+header.top .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; }
+.logo { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.logo:hover { text-decoration:none; }
+.logo .dia { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:4px;
+  background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); font-size:12px; }
+header.top nav { display:flex; gap:20px; font-size:13.5px; color:var(--ink-2); }
+header.top nav a { color:var(--ink-2); }
+header.top nav a:hover { color:var(--ink); text-decoration:none; }
+main { padding:24px 0 8px; min-height:60vh; }
+
+.hero { padding:40px 0 32px; text-align:center; }
+.hero h1 { font-size:30px; font-weight:700; letter-spacing:-.025em; }
+.hero p { margin-top:12px; color:var(--ink-2); }
+
+.drop { cursor:pointer; border:2px dashed var(--baseline); border-radius:12px; padding:44px 24px; text-align:center; transition:border-color .15s, background .15s; }
+.drop:hover { border-color:color-mix(in srgb, var(--accent) 60%, transparent); }
+.drop.drag { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 5%, transparent); }
+.drop .ic { color:var(--accent); margin-bottom:10px; }
+.drop .t { font-weight:500; }
+.drop .s { margin-top:4px; font-size:13px; color:var(--ink-3); }
+.enginebar { display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; align-items:center; margin-top:10px; font-size:12px; color:var(--ink-3); }
+.dot { display:inline-block; width:7px; height:7px; border-radius:99px; background:var(--baseline); vertical-align:1px; }
+.dot.on { background:var(--good); }
+
+.features { display:grid; gap:12px; grid-template-columns:repeat(2,1fr); margin-top:36px; }
+@media (min-width:768px){ .features { grid-template-columns:repeat(4,1fr); } }
+.features .card { text-align:center; }
+.features .fi { color:var(--accent); margin-bottom:8px; }
+.features .ft { font-size:13.5px; font-weight:600; }
+.features .fd { margin-top:4px; font-size:12px; line-height:1.6; color:var(--ink-3); }
+
+.card { border:1px solid var(--edge); background:var(--surface-1); border-radius:8px; padding:16px; }
+.ctitle { margin-bottom:12px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); }
+.badge { display:inline-flex; align-items:center; gap:4px; border-radius:4px; border:1px solid var(--edge); padding:2px 6px; font-size:11px; font-weight:500; color:var(--ink-2); vertical-align:middle; }
+.badge.accent { border-color:transparent; background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); }
+.badge.good { border-color:transparent; background:color-mix(in srgb, var(--good) 15%, transparent); color:var(--good); }
+.badge.warn { border-color:transparent; background:color-mix(in srgb, var(--warn) 20%, transparent); color:var(--ink); }
+.badge.serious { border-color:transparent; background:color-mix(in srgb, var(--serious) 20%, transparent); color:var(--ink); }
+.badge.critical { border-color:transparent; background:color-mix(in srgb, var(--critical) 15%, transparent); color:var(--critical); }
+.chip { display:inline-flex; align-items:center; margin-left:4px; white-space:nowrap; border-radius:4px; padding:1px 4px; font-size:10px; font-weight:500;
+  background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); }
+.stat .l { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); }
+.stat .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
+.stat .s { font-size:12px; color:var(--ink-2); }
+.progress { height:6px; flex:1; min-width:60px; max-width:16rem; overflow:hidden; border-radius:4px; background:var(--grid); }
+.progress > div { height:100%; border-radius:0 4px 4px 0; transition:width .3s; }
+.btn { border-radius:6px; background:var(--accent); color:#fff; padding:6px 12px; font-size:13.5px; font-weight:500; }
+.btn:hover { opacity:.9; } .btn:disabled { opacity:.5; cursor:default; }
+.txt { display:block; margin-top:4px; width:6rem; border-radius:6px; border:1px solid var(--edge); background:var(--page); color:var(--ink); padding:4px 8px; font-size:13.5px; }
+.txt.wide { width:100%; }
+.pos { color:var(--good); } .neg { color:var(--critical); }
+.muted { color:var(--ink-3); font-size:12.5px; }
+
+.banner { border:1px solid color-mix(in srgb, var(--warn) 45%, transparent); background:color-mix(in srgb, var(--warn) 9%, transparent);
+  border-radius:8px; padding:10px 14px; font-size:12.5px; line-height:1.6; color:var(--ink-2); margin:14px 0 20px; }
+h2.sect { margin:28px 0 10px; font-size:12px; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:.08em; }
+
+.ipo { cursor:pointer; margin-bottom:10px; transition:border-color .15s; }
+.ipo:hover { border-color:color-mix(in srgb, var(--accent) 45%, transparent); }
+.ipo .row { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:baseline; }
+.ipo .name { flex:1 1 240px; font-size:14.5px; font-weight:600; }
+.ipo .kv { white-space:nowrap; font-size:12.5px; color:var(--ink-2); }
+.ipo .kv b { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+.filter { width:100%; max-width:20rem; border-radius:6px; border:1px solid var(--edge); background:var(--surface-1); color:var(--ink); padding:7px 10px; font-size:13.5px; }
+
+.rhead { display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-bottom:16px; }
+.scorebox { display:flex; flex-direction:column; align-items:center; justify-content:center; width:64px; height:64px; flex:none; border:2px solid var(--baseline); border-radius:8px; }
+.scorebox .n { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.scorebox .d { font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); }
+.rhead h1 { font-size:20px; font-weight:700; }
+.rhead .meta { margin-top:2px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px; color:var(--ink-3); }
+.rhead .verdict { margin-top:4px; font-size:13.5px; font-weight:500; color:var(--ink-2); }
+.tabs { display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--edge); margin-bottom:20px; }
+.tabs button { white-space:nowrap; border-bottom:2px solid transparent; padding:8px 12px; font-size:13.5px; font-weight:500; color:var(--ink-3); }
+.tabs button:hover { color:var(--ink-2); }
+.tabs button.on { border-color:var(--accent); color:var(--ink); }
+.grid3 { display:grid; gap:16px; }
+@media (min-width:1024px){ .grid3 { grid-template-columns:repeat(3,1fr); } .span2 { grid-column:span 2; } }
+.grid2i { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+.ibox { border:1px solid var(--edge); background:var(--page); border-radius:6px; padding:12px; }
+.ibox .t { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); margin-bottom:2px; }
+.ibox .v { font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+.ibox .s { font-size:11.5px; color:var(--ink-3); margin-top:2px; }
+ul.cases { list-style:none; padding:0; display:flex; flex-direction:column; gap:8px; }
+ul.cases li { display:flex; gap:8px; font-size:13.5px; line-height:1.6; color:var(--ink-2); }
+ul.cases .cdot { margin-top:7px; width:8px; height:8px; flex:none; border-radius:99px; }
+table.tbl { width:100%; border-collapse:collapse; font-size:13px; }
+table.tbl th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:600; padding:4px 8px 6px 0; border-bottom:1px solid var(--edge); }
+table.tbl td { padding:6px 8px 6px 0; border-bottom:1px solid var(--edge); color:var(--ink-2); }
+table.tbl td.num { font-variant-numeric:tabular-nums; text-align:right; }
+table.tbl th.num { text-align:right; }
+.tblwrap { overflow-x:auto; }
+
+details.cat { border:1px solid var(--edge); background:var(--surface-1); border-radius:8px; margin-bottom:12px; }
+details.cat > summary { display:flex; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; list-style:none; }
+details.cat > summary::-webkit-details-marker { display:none; }
+details.cat > summary .chev { color:var(--ink-3); font-size:11px; width:12px; flex:none; transition:transform .15s; }
+details.cat[open] > summary .chev { transform:rotate(90deg); }
+details.cat > summary .cname { width:11rem; flex:none; font-size:13.5px; font-weight:600; }
+details.cat > summary .cscore { width:2.6rem; flex:none; text-align:right; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; }
+details.cat > summary .cmeta { font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+details.cat .rules { border-top:1px solid var(--edge); padding:16px; display:flex; flex-direction:column; gap:8px; }
+.rule { border:1px solid var(--edge); border-radius:6px; padding:12px; }
+.rule.off { opacity:.6; }
+.rule .top { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; align-items:center; }
+.rule .rname { font-size:13.5px; font-weight:500; }
+.rule .pts { font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; }
+.rule .pts span { color:var(--ink-3); font-weight:400; }
+.rule .ev { margin-top:6px; font-size:13.5px; line-height:1.6; color:var(--ink-2); }
+.rule .fine { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px 20px; font-size:11px; color:var(--ink-3); }
+.rule .why { margin-top:6px; font-size:12px; line-height:1.6; color:var(--ink-3); }
+
+.viz { position:relative; }
+.viz svg { display:block; width:100%; height:auto; }
+.viz svg:focus { outline:none; }
+.viz svg:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+.viz-tip { position:absolute; pointer-events:none; z-index:30; display:none; min-width:6.5rem; max-width:16rem;
+  background:var(--surface-1); border:1px solid var(--edge); border-radius:6px; padding:7px 10px;
+  font-size:12px; line-height:1.5; box-shadow:0 3px 14px rgba(0,0,0,.14); }
+.viz-tip .tt { color:var(--ink-3); font-size:11px; margin-bottom:3px; }
+.viz-tip .tr { display:flex; align-items:baseline; gap:6px; }
+.viz-tip .tr .k { width:12px; flex:none; border-top:2.5px solid; border-radius:2px; align-self:center; }
+.viz-tip .tr .v { font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink); }
+.viz-tip .tr .n { color:var(--ink-2); }
+.vlegend { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:6px; font-size:12px; color:var(--ink-2); }
+.vlegend .k { display:inline-block; width:14px; border-top:2.5px solid; border-radius:2px; vertical-align:middle; margin-right:5px; }
+.sharebar { display:flex; gap:2px; height:22px; border-radius:5px; overflow:hidden; }
+.sharebar > div { min-width:3px; }
+.sharekey { display:flex; gap:18px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--ink-2); }
+.sharekey .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:5px; }
+.helpcard ol { padding-left:20px; font-size:13px; color:var(--ink-2); line-height:1.7; }
+.helpcard code, .helpcard pre { font:12px/1.6 ui-monospace,Consolas,monospace; background:var(--page); border:1px solid var(--edge); border-radius:4px; }
+.helpcard code { padding:1px 5px; }
+.helpcard pre { padding:10px 12px; overflow-x:auto; margin:6px 0; }
+footer p { max-width:56rem; margin:40px auto 0; border-top:1px solid var(--edge); padding:20px 16px; text-align:center; font-size:11px; line-height:1.7; color:var(--ink-3); }
+.backlink { display:inline-block; margin-bottom:14px; font-size:13px; }
+.qa-answer { margin-top:12px; border:1px solid var(--edge); background:var(--page); border-radius:6px; padding:12px; font-size:13.5px; line-height:1.7; color:var(--ink-2); white-space:pre-wrap; }
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="logo" href="#/"><span class="dia">◆</span> RHP ANALYST</a>
+  <nav>
+    <a href="#/">IPO Radar</a>
+    <a href="#upload" id="nav-analyze">Analyze</a>
+    <a href="https://github.com/rohanbeingsocial/ipo-radar" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</div></header>
+<main><div class="wrap" id="app"><p class="muted">loading…</p></div></main>
+<footer><p>⚠ RHP Analyst is an automated document-analysis tool for research and education. It is not
+investment advice, not a recommendation to subscribe to or avoid any public offer, and not a
+SEBI-registered research service. Scores reflect only information inside each prospectus and stated
+assumptions. Point forecasts carry wide error bars; long-horizon training data skews to survivors.
+Verify independently before making any decision.</p></footer>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s == null ? "" : String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const f = (v, d=1) => v == null || isNaN(+v) ? "—" : (+v).toFixed(d);
+const pct = (v, d=1) => v == null || isNaN(+v) ? "—" : `<span class="${+v >= 0 ? "pos" : "neg"} tabular">${+v >= 0 ? "+" : ""}${(+v).toFixed(d)}%</span>`;
+const cr = (v) => v == null || isNaN(+v) ? "—" : "₹" + (+v).toLocaleString("en-IN", { maximumFractionDigits: +v < 10 ? 1 : 0 }) + " cr";
+const titleCase = (s) => String(s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const scoreTone = (s) => s >= 70 ? "var(--good)" : s >= 50 ? "var(--warn)" : s >= 35 ? "var(--serious)" : "var(--critical)";
+const CATEGORY_LABELS = {
+  business_quality: "Business quality", financial_health: "Financial health", growth: "Growth",
+  valuation: "Valuation", promoter_quality: "Promoter quality", governance: "Governance",
+  risk_level: "Risk level", competitive_position: "Competitive position",
+  capital_efficiency: "Capital efficiency", cash_generation: "Cash generation",
+};
+const badge = (text, variant="") => `<span class="badge ${variant}">${esc(text)}</span>`;
+const pageChip = (pages) => {
+  const v = [...new Set((pages || []).filter((p) => typeof p === "number"))];
+  return v.length ? `<span class="chip" title="Source page(s) in the prospectus PDF">p.${v.join(", ")}</span>` : "";
+};
+const stat = (label, value, sub="") =>
+  `<div class="stat"><div class="l">${esc(label)}</div><div class="v">${value}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
+const ibox = (t, v, s="") => `<div class="ibox"><div class="t">${esc(t)}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
+const progress = (value, tone="var(--accent)") =>
+  `<div class="progress" role="progressbar" aria-valuenow="${Math.round(value)}" aria-valuemin="0" aria-valuemax="100"><div style="width:${Math.min(100, Math.max(0, value))}%;background:${tone}"></div></div>`;
+const caseList = (items, tone) => {
+  const dot = tone === "good" ? "var(--good)" : tone === "critical" ? "var(--critical)" : "var(--ink-3)";
+  const rows = (items || []).map((c) => {
+    const text = typeof c === "string" ? c : c.text;
+    const pages = typeof c === "object" ? c.source_pages : null;
+    return `<li><span class="cdot" style="background:${dot}"></span><span>${esc(text)}${pageChip(pages)}</span></li>`;
+  }).join("");
+  return `<ul class="cases">${rows || `<li class="muted">Nothing material identified.</li>`}</ul>`;
+};
+const svg = (path) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+const ICONS = {
+  upload: svg('<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M12 15V4"/><path d="m6.5 9 5.5-5.5L17.5 9"/>'),
+  file: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>'),
+  gauge: svg('<path d="M12 15l3.5-3.5"/><path d="M20.3 18a9 9 0 1 0-16.6 0"/>'),
+  grid: svg('<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>'),
+  quote: svg('<path d="M10 11H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7a4 4 0 0 1-4 4"/><path d="M20 11h-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7a4 4 0 0 1-4 4"/>'),
+};
+
+/* ---------- charts (inline SVG, theme-aware via CSS vars) ---------- */
+const SVGNS = "http://www.w3.org/2000/svg";
+function sv(tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs || {}) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function svText(x, y, s, style, anchor) {
+  const t = sv("text", { x, y, "text-anchor": anchor || "start", style: "font:10.5px system-ui;" + (style || "fill:var(--ink-3)") });
+  t.textContent = s;
+  return t;
+}
+function niceTicks(min, max, n) {
+  const raw = (max - min) / (n || 5), mag = Math.pow(10, Math.floor(Math.log10(Math.abs(raw) || 1)));
+  const norm = raw / mag, step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(Math.round(v * 1000) / 1000);
+  return out;
+}
+function padDomain(vals, includeZero) {
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (includeZero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  const pad = (hi - lo || 1) * 0.09;
+  return [lo - pad, hi + pad];
+}
+function fmtSigned(v, d) { return (v >= 0 ? "+" : "") + (+v).toFixed(d == null ? 1 : d) + "%"; }
+function makeTip(container) {
+  const t = document.createElement("div");
+  t.className = "viz-tip";
+  container.appendChild(t);
+  return {
+    show(px, py, title, rows) {
+      t.innerHTML = "";
+      if (title) { const h = document.createElement("div"); h.className = "tt"; h.textContent = title; t.appendChild(h); }
+      for (const r of rows || []) {
+        const d = document.createElement("div"); d.className = "tr";
+        if (r.color) { const k = document.createElement("span"); k.className = "k"; k.style.borderTopColor = r.color; d.appendChild(k); }
+        const v = document.createElement("span"); v.className = "v"; v.textContent = r.value; d.appendChild(v);
+        if (r.name) { const n = document.createElement("span"); n.className = "n"; n.textContent = r.name; d.appendChild(n); }
+        t.appendChild(d);
+      }
+      t.style.display = "block";
+      const cw = container.clientWidth, tw = t.offsetWidth, th = t.offsetHeight;
+      t.style.left = Math.max(0, Math.min(px + 14, cw - tw - 2)) + "px";
+      t.style.top = Math.max(0, py - th - 12) + "px";
+    },
+    hide() { t.style.display = "none"; },
+  };
+}
+function smoothPath(P) {
+  if (P.length < 2) return "";
+  let d = `M${P[0].X},${P[0].Y}`;
+  if (P.length === 2) return d + `L${P[1].X},${P[1].Y}`;
+  const cl = (v, a, b) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), v));
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+    const c1y = cl(p1.Y + (p2.Y - p0.Y) / 6, p1.Y, p2.Y), c2y = cl(p2.Y - (p3.Y - p1.Y) / 6, p1.Y, p2.Y);
+    d += `C${p1.X + (p2.X - p0.X) / 6},${c1y},${p2.X - (p3.X - p1.X) / 6},${c2y},${p2.X},${p2.Y}`;
+  }
+  return d;
+}
+/* Line chart: series = [{name, color, pts:[{x, v, tag?, big?}]}], band = [{x, lo, hi}] */
+function mountLineChart(box, cfg) {
+  if (!box) return;
+  const W = 720, H = cfg.h || 250, m = { l: 46, r: cfg.mr || 54, t: 16, b: 30 };
+  const xs = cfg.series.flatMap((s) => s.pts.map((p) => p.x));
+  const vals = cfg.series.flatMap((s) => s.pts.map((p) => p.v)).concat((cfg.band || []).flatMap((b) => [b.lo, b.hi]));
+  if (!xs.length) return;
+  const xmax = cfg.xmax || Math.max(...xs), xmin = 0;
+  const [ylo, yhi] = padDomain(vals, true);
+  const X = (x) => m.l + (x - xmin) / (xmax - xmin || 1) * (W - m.l - m.r);
+  const Y = (v) => m.t + (yhi - v) / (yhi - ylo || 1) * (H - m.t - m.b);
+  if (cfg.series.length > 1) {
+    const lg = document.createElement("div"); lg.className = "vlegend";
+    for (const s of cfg.series) {
+      const it = document.createElement("span");
+      const k = document.createElement("span"); k.className = "k"; k.style.borderTopColor = s.colorHex;
+      it.appendChild(k); it.appendChild(document.createTextNode(s.name));
+      lg.appendChild(it);
+    }
+    box.appendChild(lg);
+  }
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, tabindex: 0, role: "img", "aria-label": cfg.label || "chart" });
+  for (const tv of niceTicks(ylo, yhi, 5)) {
+    svg.appendChild(sv("line", { x1: m.l, x2: W - m.r, y1: Y(tv), y2: Y(tv), style: `stroke:${tv === 0 ? "var(--baseline)" : "var(--grid)"};stroke-width:1` }));
+    svg.appendChild(svText(m.l - 7, Y(tv) + 3.5, (cfg.yFmt || ((v) => v + "%"))(tv), "fill:var(--ink-3);font-variant-numeric:tabular-nums", "end"));
+  }
+  if (Y(0) >= m.t && Y(0) <= H - m.b && cfg.zeroLabel) svg.appendChild(svText(W - m.r + 5, Y(0) + 3.5, cfg.zeroLabel, "fill:var(--ink-3)"));
+  for (const tk of cfg.xticks) {
+    svg.appendChild(sv("line", { x1: X(tk.x), x2: X(tk.x), y1: H - m.b, y2: H - m.b + 4, style: "stroke:var(--baseline);stroke-width:1" }));
+    svg.appendChild(svText(X(tk.x), H - m.b + 15, tk.label, "fill:var(--ink-3)", "middle"));
+  }
+  if (cfg.band && cfg.band.length > 1) {
+    const up = cfg.band.map((b) => `${X(b.x)},${Y(b.hi)}`).join(" L");
+    const dn = [...cfg.band].reverse().map((b) => `${X(b.x)},${Y(b.lo)}`).join(" L");
+    svg.appendChild(sv("path", { d: `M${up} L${dn} Z`, style: `fill:${cfg.series[0].colorHex};opacity:.1` }));
+  }
+  for (const s of cfg.series) {
+    const P = s.pts.map((p) => ({ X: X(p.x), Y: Y(p.v) }));
+    svg.appendChild(sv("path", { d: smoothPath(P), style: `stroke:${s.colorHex};stroke-width:2;fill:none;stroke-linejoin:round;stroke-linecap:round` }));
+    s.pts.forEach((p, i) => {
+      svg.appendChild(sv("circle", { cx: X(p.x), cy: Y(p.v), r: p.big ? 5.5 : 4.5, style: `fill:${s.colorHex};stroke:var(--surface-1);stroke-width:2` }));
+      if (p.tag) svg.appendChild(svText(X(p.x), Y(p.v) + (p.v < 0 ? 16 : -10), p.tag, "fill:var(--ink-3)", "middle"));
+      if (i === s.pts.length - 1 && s.endLabel) svg.appendChild(svText(X(p.x) + 9, Y(p.v) + 3.5, s.endLabel, "fill:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums"));
+    });
+  }
+  const cross = sv("line", { y1: m.t, y2: H - m.b, style: "stroke:var(--baseline);stroke-width:1", visibility: "hidden" });
+  svg.appendChild(cross);
+  box.appendChild(svg);
+  const tip = makeTip(box);
+  const uxs = [...new Set(xs)].sort((a, b) => a - b);
+  let ki = -1;
+  const showAt = (ux) => {
+    cross.setAttribute("x1", X(ux)); cross.setAttribute("x2", X(ux));
+    cross.setAttribute("visibility", "visible");
+    const rows = [];
+    let ty = null;
+    for (const s of cfg.series) {
+      const p = s.pts.find((q) => Math.abs(q.x - ux) < 1);
+      if (p) { rows.push({ color: s.colorHex, value: (cfg.vFmt || fmtSigned)(p.v), name: s.name + (p.tag ? ` (${p.tag})` : "") }); ty = Y(p.v); }
+    }
+    if (!rows.length) { tip.hide(); return; }
+    const r = box.getBoundingClientRect(), sr = svg.getBoundingClientRect();
+    const k = sr.width / W;
+    tip.show((sr.left - r.left) + X(ux) * k, (sr.top - r.top) + (ty ?? m.t) * k, cfg.xTip ? cfg.xTip(ux) : "", rows);
+  };
+  const hide = () => { cross.setAttribute("visibility", "hidden"); tip.hide(); ki = -1; };
+  svg.addEventListener("pointermove", (e) => {
+    const sr = svg.getBoundingClientRect();
+    const px = (e.clientX - sr.left) * (W / sr.width);
+    let best = uxs[0], bd = 1e9;
+    for (const ux of uxs) { const d = Math.abs(X(ux) - px); if (d < bd) { bd = d; best = ux; } }
+    showAt(best);
+  });
+  svg.addEventListener("pointerleave", hide);
+  svg.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      ki = ki < 0 ? 0 : Math.max(0, Math.min(uxs.length - 1, ki + (e.key === "ArrowRight" ? 1 : -1)));
+      showAt(uxs[ki]);
+    } else if (e.key === "Escape") hide();
+  });
+  svg.addEventListener("blur", hide);
+}
+/* Horizontal bars, one hue (nominal categories): items = [{label, value}] */
+function mountBars(box, cfg) {
+  if (!box || !cfg.items.length) return;
+  const W = 720, rowH = 27, barH = 18, m = { l: 56, r: 60, t: 6, b: 22 };
+  const H = m.t + cfg.items.length * rowH + m.b;
+  const vmax = Math.max(...cfg.items.map((i) => i.value)) * 1.06 || 1;
+  const X = (v) => m.l + v / vmax * (W - m.l - m.r);
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": cfg.label || "bar chart" });
+  for (const tv of niceTicks(0, vmax, 5)) {
+    if (tv === 0) continue;
+    svg.appendChild(sv("line", { x1: X(tv), x2: X(tv), y1: m.t, y2: H - m.b, style: "stroke:var(--grid);stroke-width:1" }));
+    svg.appendChild(svText(X(tv), H - m.b + 13, (cfg.tickFmt || ((v) => v + "×"))(tv), "fill:var(--ink-3);font-variant-numeric:tabular-nums", "middle"));
+  }
+  svg.appendChild(sv("line", { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, style: "stroke:var(--baseline);stroke-width:1" }));
+  const tip = makeTip(box);
+  cfg.items.forEach((it, i) => {
+    const y = m.t + i * rowH + (rowH - barH) / 2;
+    svg.appendChild(svText(m.l - 8, y + barH / 2 + 3.5, it.label, "fill:var(--ink-2)", "end"));
+    const w = Math.max(2, X(it.value) - m.l);
+    const bar = sv("path", {
+      d: `M${m.l},${y} h${Math.max(0, w - 4)} a4,4 0 0 1 4,4 v${barH - 8} a4,4 0 0 1 -4,4 h${-Math.max(0, w - 4)} Z`,
+      style: "fill:var(--series-1)",
+    });
+    svg.appendChild(bar);
+    svg.appendChild(svText(m.l + w + 6, y + barH / 2 + 3.5, (cfg.valFmt || ((v) => f(v, 1) + "×"))(it.value), "fill:var(--ink);font-weight:600;font-variant-numeric:tabular-nums"));
+    const hit = sv("rect", { x: m.l, y: m.t + i * rowH, width: W - m.l - m.r, height: rowH, fill: "transparent" });
+    hit.addEventListener("pointermove", () => {
+      bar.style.opacity = ".82";
+      const sr = svg.getBoundingClientRect(), r = box.getBoundingClientRect(), k = sr.width / W;
+      tip.show((sr.left - r.left) + (m.l + w) * k, (sr.top - r.top) + y * k, "", [{ color: cssVar("--series-1"), value: (cfg.valFmt || ((v) => f(v, 1) + "×"))(it.value), name: it.label }]);
+    });
+    hit.addEventListener("pointerleave", () => { bar.style.opacity = "1"; tip.hide(); });
+    svg.appendChild(hit);
+  });
+  box.appendChild(svg);
+}
+/* Scatter with nearest-point hover: points = [{x, y, name, nav}] */
+function mountScatter(box, cfg) {
+  if (!box || cfg.points.length < 3) return;
+  const W = 720, H = 290, m = { l: 46, r: 18, t: 14, b: 34 };
+  const [xlo, xhi] = padDomain(cfg.points.map((p) => p.x), false);
+  const [ylo, yhi] = padDomain(cfg.points.map((p) => p.y), true);
+  const X = (x) => m.l + (x - xlo) / (xhi - xlo || 1) * (W - m.l - m.r);
+  const Y = (v) => m.t + (yhi - v) / (yhi - ylo || 1) * (H - m.t - m.b);
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, tabindex: 0, role: "img", "aria-label": cfg.label || "scatter" });
+  for (const tv of niceTicks(ylo, yhi, 5)) {
+    svg.appendChild(sv("line", { x1: m.l, x2: W - m.r, y1: Y(tv), y2: Y(tv), style: `stroke:${tv === 0 ? "var(--baseline)" : "var(--grid)"};stroke-width:1` }));
+    svg.appendChild(svText(m.l - 7, Y(tv) + 3.5, tv + "%", "fill:var(--ink-3);font-variant-numeric:tabular-nums", "end"));
+  }
+  for (const tv of niceTicks(xlo, xhi, 6)) {
+    svg.appendChild(svText(X(tv), H - m.b + 15, String(tv), "fill:var(--ink-3);font-variant-numeric:tabular-nums", "middle"));
+  }
+  svg.appendChild(svText((m.l + W - m.r) / 2, H - 3, cfg.xLabel, "fill:var(--ink-3)", "middle"));
+  const dots = cfg.points.map((p) => {
+    const c = sv("circle", { cx: X(p.x), cy: Y(p.y), r: 4.5, style: "fill:var(--series-1);stroke:var(--surface-1);stroke-width:2;opacity:.92" });
+    svg.appendChild(c);
+    return c;
+  });
+  box.appendChild(svg);
+  const tip = makeTip(box);
+  let cur = -1;
+  const setCur = (i) => {
+    if (cur >= 0) { dots[cur].setAttribute("r", 4.5); dots[cur].style.opacity = ".92"; }
+    cur = i;
+    if (i < 0) { tip.hide(); svg.style.cursor = "default"; return; }
+    const p = cfg.points[i];
+    dots[i].setAttribute("r", 6); dots[i].style.opacity = "1";
+    const sr = svg.getBoundingClientRect(), r = box.getBoundingClientRect(), k = sr.width / W;
+    tip.show((sr.left - r.left) + X(p.x) * k, (sr.top - r.top) + Y(p.y) * k, p.name, [
+      { value: fmtSigned(p.y), name: cfg.yName },
+      { value: f(p.x, 1), name: cfg.xName },
+    ]);
+    svg.style.cursor = p.nav ? "pointer" : "default";
+  };
+  svg.addEventListener("pointermove", (e) => {
+    const sr = svg.getBoundingClientRect(), kx = W / sr.width;
+    const px = (e.clientX - sr.left) * kx, py = (e.clientY - sr.top) * kx;
+    let bi = -1, bd = 26 * 26;
+    cfg.points.forEach((p, i) => {
+      const d = (X(p.x) - px) ** 2 + (Y(p.y) - py) ** 2;
+      if (d < bd) { bd = d; bi = i; }
+    });
+    setCur(bi);
+  });
+  svg.addEventListener("pointerleave", () => setCur(-1));
+  svg.addEventListener("click", () => { if (cur >= 0 && cfg.points[cur].nav) location.hash = cfg.points[cur].nav; });
+  svg.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      const order = cfg.points.map((p, i) => i).sort((a, b) => cfg.points[a].x - cfg.points[b].x);
+      const pos = order.indexOf(cur);
+      setCur(order[Math.max(0, Math.min(order.length - 1, (pos < 0 ? 0 : pos + (e.key === "ArrowRight" ? 1 : -1))))]);
+    } else if (e.key === "Enter" && cur >= 0 && cfg.points[cur].nav) location.hash = cfg.points[cur].nav;
+    else if (e.key === "Escape") setCur(-1);
+  });
+  svg.addEventListener("blur", () => setCur(-1));
+}
+/* Emphasis strip: gray context dots + one highlighted value + a median tick */
+function mountStrip(box, cfg) {
+  if (!box) return;
+  const W = 720, H = 104, m = { l: 20, r: 20 }, ay = 64;
+  const vals = cfg.dots.map((d) => d.v).concat(cfg.median != null ? [cfg.median] : []);
+  if (!vals.length) return;
+  const [lo, hi] = padDomain(vals, false);
+  const X = (v) => m.l + (v - lo) / (hi - lo || 1) * (W - m.l - m.r);
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": cfg.label || "strip plot" });
+  svg.appendChild(sv("line", { x1: m.l, x2: W - m.r, y1: ay, y2: ay, style: "stroke:var(--grid);stroke-width:1" }));
+  for (const tv of niceTicks(lo, hi, 6)) {
+    svg.appendChild(sv("line", { x1: X(tv), x2: X(tv), y1: ay, y2: ay + 4, style: "stroke:var(--baseline);stroke-width:1" }));
+    svg.appendChild(svText(X(tv), ay + 17, tv + "×", "fill:var(--ink-3);font-variant-numeric:tabular-nums", "middle"));
+  }
+  if (cfg.median != null) {
+    svg.appendChild(sv("line", { x1: X(cfg.median), x2: X(cfg.median), y1: ay - 16, y2: ay + 8, style: "stroke:var(--ink-3);stroke-width:1.5" }));
+    svg.appendChild(svText(X(cfg.median), ay + 32, `peer median ${f(cfg.median, 1)}×`, "fill:var(--ink-3)", "middle"));
+  }
+  const tip = makeTip(box);
+  const marks = [];
+  for (const d of cfg.dots) {
+    const em = d.emph;
+    const c = sv("circle", { cx: X(d.v), cy: ay - (em ? 0 : 0), r: em ? 6.5 : 5, style: `fill:${em ? "var(--series-1)" : "var(--emphasis)"};stroke:var(--surface-1);stroke-width:2` });
+    svg.appendChild(c);
+    if (em) svg.appendChild(svText(X(d.v), ay - 18, `${d.name} ${f(d.v, 1)}×`, "fill:var(--ink-2);font-weight:600", "middle"));
+    marks.push({ c, d });
+  }
+  box.appendChild(svg);
+  svg.addEventListener("pointermove", (e) => {
+    const sr = svg.getBoundingClientRect(), kx = W / sr.width;
+    const px = (e.clientX - sr.left) * kx;
+    let best = null, bd = 24;
+    for (const mk of marks) { const d = Math.abs(X(mk.d.v) - px); if (d < bd) { bd = d; best = mk; } }
+    if (!best) { tip.hide(); return; }
+    const r = box.getBoundingClientRect(), k = sr.width / W;
+    tip.show((sr.left - r.left) + X(best.d.v) * k, (sr.top - r.top) + (ay - 8) * k, best.d.name,
+      [{ value: f(best.d.v, 1) + "×", name: "P/E" }]);
+  });
+  svg.addEventListener("pointerleave", () => tip.hide());
+}
+/* Share bar (part-to-whole, 2px surface gaps) */
+function mountShare(box, parts, fmtVal) {
+  if (!box) return;
+  const total = parts.reduce((a, p) => a + (p.value || 0), 0);
+  if (!(total > 0)) return;
+  const bar = document.createElement("div"); bar.className = "sharebar";
+  const key = document.createElement("div"); key.className = "sharekey";
+  for (const p of parts) {
+    if (!(p.value > 0)) continue;
+    const seg = document.createElement("div");
+    seg.style.flex = String(p.value / total);
+    seg.style.background = p.color;
+    seg.title = `${p.label}: ${fmtVal(p.value)}`;
+    bar.appendChild(seg);
+    const k = document.createElement("span");
+    const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = p.color;
+    k.appendChild(sw);
+    k.appendChild(document.createTextNode(`${p.label} ${fmtVal(p.value)} (${Math.round(p.value / total * 100)}%)`));
+    key.appendChild(k);
+  }
+  box.appendChild(bar); box.appendChild(key);
+}
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function monthTicks(maxS) {
+  return [0, 3, 6, 12, 18, 24].filter((mm) => mm * 21 <= maxS + 12)
+    .map((mm) => ({ x: mm * 21, label: mm === 0 ? "listing" : mm + "m" }));
+}
+/* Build the forecast-path chart into a container from a forecast object (+ optional actuals) */
+function mountForecastPath(box, fc, item) {
+  if (!box || !fc) return;
+  const hz = fc.horizons ? fc : fc.ml_horizons;
+  if (!hz) return;
+  const H2S = { "6m": 126, "12m": 252, "24m": 504 };
+  const fpts = [];
+  const rules = fc.rules;
+  // day 1: prefer the trained listing-gain model over the rules heuristic — it is the
+  // one pre-listing number with demonstrated out-of-sample skill
+  const lg = fc.listing_gain;
+  if (lg && lg.pct != null) fpts.push({ x: 1, v: lg.pct });
+  else if (rules && rules.listing_open_premium_pct && rules.listing_open_premium_pct.point != null)
+    fpts.push({ x: 1, v: rules.listing_open_premium_pct.point });
+
+  const band = [];
+  if (lg && lg.pct != null && lg.cv_mae_pp != null)
+    band.push({ x: 1, lo: lg.pct - lg.cv_mae_pp, hi: lg.pct + lg.cv_mae_pp });
+
+  // the drawdown model predicts HOW DEEP, not WHEN. Only place it on the path if the
+  // timing head also survived validation; otherwise it is drawn as a floor line below.
+  if (hz.entry && hz.entry.expected_bottom_session != null && hz.entry.expected_bottom_depth_pct_vs_offer != null)
+    fpts.push({ x: hz.entry.expected_bottom_session, v: hz.entry.expected_bottom_depth_pct_vs_offer, tag: "expected low" });
+
+  for (const [k, s] of Object.entries(H2S)) {
+    const h = (hz.horizons || {})[k];
+    if (h && h.ret_pct_vs_offer != null) {
+      fpts.push({ x: s, v: h.ret_pct_vs_offer });
+      if (h.cv_mae_pp != null) band.push({ x: s, lo: h.ret_pct_vs_offer - h.cv_mae_pp, hi: h.ret_pct_vs_offer + h.cv_mae_pp });
+    }
+  }
+  if (hz.exit && hz.exit.expected_peak_session != null && hz.exit.expected_peak_pct_vs_offer != null)
+    fpts.push({ x: hz.exit.expected_peak_session, v: hz.exit.expected_peak_pct_vs_offer, tag: "expected peak", big: true });
+  fpts.sort((a, b) => a.x - b.x);
+  const dedup = fpts.filter((p, i) => !i || p.x - fpts[i - 1].x > 2);
+  // 2 is enough now: the model deliberately forecasts fewer points than it used to
+  if (dedup.length < 2) return;
+  const series = [{
+    name: "Forecast path", colorHex: cssVar("--series-1"), pts: dedup,
+    endLabel: fmtSigned(dedup[dedup.length - 1].v, 0),
+  }];
+  const a = item && item.actual;
+  if (a) {
+    const apts = [];
+    if (item.day1_gain != null) apts.push({ x: 1, v: item.day1_gain });
+    if (a.bottom_so_far_pct != null && a.bottom_so_far_session != null) apts.push({ x: a.bottom_so_far_session, v: a.bottom_so_far_pct, tag: "low so far" });
+    if (a.ret_6m != null) apts.push({ x: 126, v: a.ret_6m });
+    if (a.ret_12m != null) apts.push({ x: 252, v: a.ret_12m });
+    if (a.current_ret != null && item.listing) {
+      const s = Math.min(520, Math.max(2, Math.round((Date.now() - new Date(item.listing).getTime()) / 864e5 * 5 / 7)));
+      if (!apts.length || s > apts[apts.length - 1].x + 1) apts.push({ x: s, v: a.current_ret, tag: "now" });
+    }
+    apts.sort((q, r) => q.x - r.x);
+    if (apts.length >= 2) series.push({ name: "Actual so far", colorHex: cssVar("--series-2"), pts: apts });
+  }
+  const xmax = Math.max(504, ...series.flatMap((s) => s.pts.map((p) => p.x))) + 8;
+  mountLineChart(box, {
+    series, band, xmax, xticks: monthTicks(xmax), zeroLabel: "offer",
+    label: "Forecast path: expected % vs offer price by month since listing",
+    xTip: (x) => x <= 2 ? "listing day" : `~${(x / 21).toFixed(1)} months (session ${Math.round(x)})`,
+  });
+}
+
+/* ---------- data & engine plumbing ---------- */
+const state = { radar: null, reports: {}, engineOk: null, live: {} };
+const apiBase = () => (localStorage.getItem("rhp_api_base") || "http://localhost:8000").replace(/\/+$/, "");
+
+async function loadRadar() {
+  if (state.radar) return state.radar;
+  const r = await fetch("data/ipos.json");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  state.radar = await r.json();
+  return state.radar;
+}
+async function loadReport(cgId) {
+  if (cgId in state.reports) return state.reports[cgId];
+  try {
+    const r = await fetch(`data/reports/${encodeURIComponent(cgId)}.json`);
+    state.reports[cgId] = r.ok ? await r.json() : null;
+  } catch { state.reports[cgId] = null; }
+  return state.reports[cgId];
+}
+async function probeEngine() {
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 2500);
+    const r = await fetch(apiBase() + "/api/analyses", { signal: ctl.signal, cache: "no-store" });
+    clearTimeout(t);
+    state.engineOk = r.ok;
+  } catch { state.engineOk = false; }
+  const dot = $("engine-dot"), lbl = $("engine-lbl");
+  if (dot) { dot.className = "dot" + (state.engineOk ? " on" : ""); }
+  if (lbl) { lbl.textContent = state.engineOk ? `live engine connected (${apiBase()})` : "no live engine connected"; }
+  return state.engineOk;
+}
+async function apiJson(path, opts) {
+  const r = await fetch(apiBase() + path, opts);
+  if (!r.ok) {
+    let detail = "HTTP " + r.status;
+    try { detail = (await r.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  return r.json();
+}
+
+/* ---------- home ---------- */
+function ipoCard(x) {
+  const rhp = x.rhp;
+  const scoreChip = rhp && rhp.score != null ? badge(`RHP ${f(rhp.score, 1)}`, "accent") : badge("RHP pending", "warn");
+  const valChip = rhp && rhp.valuation
+    ? badge(titleCase(rhp.valuation), rhp.valuation.includes("over") ? "critical" : /attract|under/.test(rhp.valuation) ? "good" : "warn") : "";
+  const subs = x.subs ? `QIB <b>${f(x.subs.qib)}x</b>${x.subs.rii != null ? ` · Retail <b>${f(x.subs.rii)}x</b>` : ""}` : "—";
+  return `<div class="card ipo" data-nav="#/ipo/${esc(x.cg_ipo_id)}" role="link" tabindex="0" aria-label="${esc(x.name)} report">
+    <div class="row">
+      <span class="name">${esc(x.name)}</span>
+      ${scoreChip} ${valChip}
+      <span class="kv">${x.listing ? `listed <b>${esc(x.listing)}</b>` : `opens <b>${esc(x.open) || "—"}</b>`}</span>
+      <span class="kv">offer <b>${x.offer_price != null ? "₹" + f(x.offer_price, 0) : "—"}</b></span>
+      <span class="kv">size <b>${cr(x.issue_cr)}</b></span>
+      <span class="kv">subs ${subs}</span>
+      <span class="kv">day-1 ${pct(x.day1_gain)}</span>
+    </div>
+  </div>`;
+}
+async function viewHome() {
+  const app = $("app");
+  app.innerHTML = `
+  <div class="hero">
+    <h1>Decode any Red Herring Prospectus in minutes.</h1>
+    <p>Extraction · Valuation vs peers · Risk analysis · Explainable scoring — every conclusion cited to its page.</p>
+  </div>
+  <div id="upload">
+    <div class="drop" id="drop" role="button" tabindex="0" aria-label="Upload RHP PDF">
+      <div class="ic">${ICONS.upload}</div>
+      <div class="t" id="drop-t">Drop an RHP / DRHP PDF here</div>
+      <div class="s">or click to browse · up to 300 MB · analyzed by the live engine</div>
+      <input type="file" id="file" accept="application/pdf" class="sr">
+    </div>
+    <div class="enginebar">
+      <span><span class="dot" id="engine-dot"></span> <span id="engine-lbl">checking for a live engine…</span></span>
+      <a href="#" id="engine-how">how do I analyze my own RHP?</a>
+    </div>
+    <div id="engine-help" style="display:none"></div>
+    <p class="muted" id="upload-err" style="text-align:center;margin-top:8px;color:var(--critical)"></p>
+  </div>
+  <div class="features">
+    ${[[ICONS.file, "27 ICDR sections", "Automatic chapter mapping per SEBI's disclosure framework"],
+       [ICONS.gauge, "10-dimension scoring", "Every point traceable to a rule, a number and a page"],
+       [ICONS.grid, "Risk heatmap", "13 risk classes, quantified severities, boilerplate detection"],
+       [ICONS.quote, "Cited evidence", "Each conclusion carries the source page in the PDF"]]
+      .map(([ic, t, d]) => `<div class="card"><div class="fi">${ic}</div><div class="ft">${t}</div><div class="fd">${d}</div></div>`).join("")}
+  </div>
+  <h2 class="sect" id="radar">Currently tracked IPOs</h2>
+  <div class="muted" id="radar-meta">loading…</div>
+  <div class="banner">Automated document analysis for research and education. <b>Not investment advice</b>,
+    not a recommendation, not a SEBI-registered research report. Point forecasts carry wide error bars;
+    direction and timing bands are the only reads that backtest reliably.</div>
+  <div id="home-viz"></div>
+  <input class="filter" id="filter" type="search" placeholder="Filter by company name…" aria-label="Filter IPOs">
+  <div id="list"><p class="muted" style="margin-top:12px">loading…</p></div>`;
+
+  wireUpload();
+  void probeEngine();
+
+  try {
+    const d = await loadRadar();
+    $("radar-meta").textContent = `${d.count} IPOs tracked · every one with an RHP found on SEBI gets the full analyzer report · updated ${new Date(d.generated_at).toLocaleString()}`;
+    const render = (q) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const match = (x) => !q || x.name.toLowerCase().includes(q);
+      const upcoming = d.ipos.filter((x) => (!x.listing || x.listing >= today) && match(x));
+      const listed = d.ipos.filter((x) => x.listing && x.listing < today && match(x));
+      let html = "";
+      if (upcoming.length) html += `<h2 class="sect">Open / upcoming</h2>` + upcoming.map(ipoCard).join("");
+      if (listed.length) html += `<h2 class="sect">Recently listed</h2>` + listed.map(ipoCard).join("");
+      $("list").innerHTML = html || `<p class="muted" style="margin-top:12px">No IPO matches that filter.</p>`;
+    };
+    render("");
+    $("filter").addEventListener("input", (e) => render(e.target.value.trim().toLowerCase()));
+    const pts = d.ipos
+      .filter((x) => x.rhp && x.rhp.score != null && x.day1_gain != null)
+      .map((x) => ({ x: x.rhp.score, y: x.day1_gain, name: x.name, nav: "#/ipo/" + x.cg_ipo_id }));
+    if (pts.length >= 8) {
+      $("home-viz").innerHTML = `<div class="card" style="margin-bottom:14px">
+        <div class="ctitle">RHP score vs listing-day gain — every listed IPO with both on record</div>
+        <div class="viz" id="viz-scatter"></div>
+        <p class="muted" style="margin-top:6px">Each dot is one IPO: hover (or tab + arrow keys) for the name, click to open
+        its report. The zero line is the offer price; exact figures live in each IPO's row below.</p></div>`;
+      mountScatter($("viz-scatter"), {
+        points: pts, xLabel: "RHP score (0–100)", xName: "RHP score", yName: "day-1 close vs offer",
+        label: "Scatter of RHP score against listing-day gain for listed IPOs",
+      });
+    }
+  } catch (e) {
+    $("list").innerHTML = `<p class="muted">data load failed: ${esc(e.message)}</p>`;
+  }
+}
+
+/* ---------- upload / live engine ---------- */
+function engineHelpHtml() {
+  return `<div class="card helpcard" style="max-width:44rem;margin:14px auto 0">
+    <div class="ctitle">Analyze your own RHP</div>
+    <p style="font-size:13px;color:var(--ink-2);line-height:1.7">This page is a static demo — the tracked IPOs above
+    were analyzed ahead of time by the pipeline. To analyze <i>your own</i> PDF it needs the open-source engine
+    running somewhere it can reach:</p>
+    <ol style="margin-top:8px">
+      <li><b>Run it locally</b> (Python 3.11+, ~2 minutes):
+        <pre>git clone https://github.com/rohanbeingsocial/ipo-radar
+cd ipo-radar/backend
+pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000</pre>
+        Keep this page open — it auto-detects <code>localhost:8000</code> and the drop-zone goes live.
+        (Safari blocks pages from calling localhost; use Chrome, Edge or Firefox.)</li>
+      <li style="margin-top:6px"><b>Or point it at a hosted engine</b>:
+        <input class="txt wide" id="engine-url" placeholder="https://your-engine.example.com" value="${esc(localStorage.getItem("rhp_api_base") || "")}" style="margin:6px 0">
+        <button class="btn" id="engine-save">Save &amp; test</button>
+        <span class="muted" id="engine-test"></span></li>
+    </ol>
+  </div>`;
+}
+function wireUpload() {
+  const drop = $("drop"), input = $("file");
+  const submit = async (file) => {
+    const err = $("upload-err");
+    err.textContent = "";
+    if (!file || !file.name.toLowerCase().endsWith(".pdf")) { err.textContent = "Please upload a PDF (RHP or DRHP)."; return; }
+    if (state.engineOk == null) await probeEngine();
+    if (!state.engineOk) { showEngineHelp(); return; }
+    $("drop-t").textContent = "Uploading…";
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiJson("/api/documents", { method: "POST", body: form });
+      location.hash = "#/live/" + res.analysis_id;
+    } catch (e) {
+      $("drop-t").textContent = "Drop an RHP / DRHP PDF here";
+      err.textContent = "Upload failed: " + e.message;
+    }
+  };
+  drop.addEventListener("click", () => input.click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+  input.addEventListener("change", () => submit(input.files && input.files[0]));
+  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+  drop.addEventListener("drop", (e) => {
+    e.preventDefault();
+    drop.classList.remove("drag");
+    submit(e.dataTransfer.files && e.dataTransfer.files[0]);
+  });
+  $("engine-how").addEventListener("click", (e) => { e.preventDefault(); showEngineHelp(); });
+}
+function showEngineHelp() {
+  const box = $("engine-help");
+  if (box.style.display !== "none" && box.innerHTML) { box.style.display = "none"; return; }
+  box.innerHTML = engineHelpHtml();
+  box.style.display = "block";
+  $("engine-save").addEventListener("click", async () => {
+    const v = $("engine-url").value.trim().replace(/\/+$/, "");
+    if (v) localStorage.setItem("rhp_api_base", v); else localStorage.removeItem("rhp_api_base");
+    $("engine-test").textContent = " testing…";
+    const ok = await probeEngine();
+    $("engine-test").textContent = ok ? " connected ✓" : " not reachable ✗";
+  });
+}
+
+/* ---------- shared report tabs ---------- */
+function scoreBars(scoring) {
+  return Object.entries(scoring.categories || {}).map(([k, v]) => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="width:10.5rem;flex:none;font-size:12.5px;color:var(--ink-2)">${esc(CATEGORY_LABELS[k] || titleCase(k))}</span>
+      ${progress(v.score, scoreTone(v.score))}
+      <span class="tabular" style="width:2rem;text-align:right;font-size:12.5px;font-weight:600">${Math.round(v.score)}</span>
+    </div>`).join("");
+}
+function tabOverview(report, item) {
+  const snap = report.snapshot || {};
+  const band = snap.price_band || [];
+  const fresh = snap.fresh_issue_cr != null ? snap.fresh_issue_cr : (item && item.fresh_cr);
+  const ofs = snap.ofs_cr != null ? snap.ofs_cr : (item && item.ofs_cr);
+  const total = snap.total_issue_cr != null ? snap.total_issue_cr : (item && item.issue_cr);
+  const exec = (report.executive_summary || []).map((p) =>
+    `<p style="font-size:13.5px;line-height:1.7;color:var(--ink-2);margin-bottom:10px">${esc(p.text)}${pageChip(p.source_pages)}</p>`).join("");
+  const cases = report.cases || {};
+  const flags = report.flags || {};
+  const objects = (snap.objects || []).slice(0, 8).map((o) => `
+    <li style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+      ${badge(titleCase(o.category), o.category === "debt_repayment" || o.category === "general_corporate" ? "warn" : "accent")}
+      <span class="tabular" style="font-weight:500;flex:none">${o.amount_cr != null ? cr(o.amount_cr) : "—"}</span>
+    </li>`).join("");
+  const questions = (report.questions || []).map((q) => `<li>${esc(q)}</li>`).join("");
+  window.__afterTab = () => {
+    if (fresh > 0 || ofs > 0) mountShare($("viz-share"), [
+      { label: "Fresh issue (to company)", value: fresh || 0, color: cssVar("--series-1") },
+      { label: "OFS (to sellers)", value: ofs || 0, color: cssVar("--series-3") },
+    ], cr);
+  };
+  return `<div class="grid3">
+    ${exec ? `<div class="card span2"><div class="ctitle">Executive summary</div>${exec}</div>` : ""}
+    <div class="card">
+      <div class="ctitle">IPO snapshot</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+        ${stat("Price band", band[0] != null && band[1] != null ? `₹${f(band[0],0)}–${f(band[1],0)}` : item && item.offer_price != null ? "₹" + f(item.offer_price, 0) : "n/a")}
+        ${stat("Total issue", cr(total))}
+        ${stat("Fresh issue", cr(fresh))}
+        ${stat("OFS", cr(ofs))}
+        ${stat("Listing at", esc(snap.listing_at || "BSE, NSE"))}
+        ${stat("Lot size", snap.lot_size != null ? f(snap.lot_size, 0) : "n/a")}
+        ${snap.pre_issue_promoter_pct != null ? stat("Promoter (pre)", f(snap.pre_issue_promoter_pct, 1) + "%") : ""}
+        ${snap.post_issue_promoter_pct != null ? stat("Promoter (post)", f(snap.post_issue_promoter_pct, 1) + "%") : ""}
+        ${item && item.lead ? stat("Lead manager", `<span style="font-size:13.5px">${esc(item.lead)}</span>`) : ""}
+        ${item && item.open ? stat("Issue dates", `<span style="font-size:13.5px">${esc(item.open)} → ${esc(item.close || "—")}</span>`) : ""}
+      </div>
+      ${fresh > 0 || ofs > 0 ? `<div class="ctitle" style="margin-top:18px">Fresh issue vs offer for sale</div><div class="viz" id="viz-share"></div>` : ""}
+    </div>
+    ${flags.green ? `<div class="card"><div class="ctitle">Green flags</div>${caseList(flags.green.slice(0, 6), "good")}</div>` : ""}
+    ${flags.red ? `<div class="card"><div class="ctitle">Red flags</div>${caseList(flags.red.slice(0, 6), "critical")}</div>` : ""}
+    <div class="card ${flags.green ? "" : "span2"}"><div class="ctitle">Score breakdown</div>${scoreBars(report.scoring || { categories: {} })}</div>
+    <div class="card span2"><div style="display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+      <div><div class="ctitle">Bull case</div>${caseList((cases.bull || []).slice(0, 5), "good")}</div>
+      <div><div class="ctitle">Bear case</div>${caseList((cases.bear || []).slice(0, 5), "critical")}</div>
+      ${cases.neutral ? `<div><div class="ctitle">Unknowns / neutral</div>${caseList(cases.neutral.slice(0, 5), "neutral")}</div>` : ""}
+    </div></div>
+    <div class="card">
+      <div class="ctitle">Use of proceeds</div>
+      <ul class="cases">${objects || `<li class="muted">Objects table not extracted.</li>`}</ul>
+      ${report.industry && report.industry.excerpt ? `
+        <div class="ctitle" style="margin-top:18px">Industry (as stated by the issuer)</div>
+        <p style="font-size:12px;line-height:1.7;color:var(--ink-3)">${esc(report.industry.excerpt.slice(0, 400))}…</p>` : ""}
+    </div>
+    ${questions ? `<div class="card span2"><div class="ctitle">Questions investors should ask</div>
+      <ol style="padding-left:20px;font-size:13.5px;line-height:1.8;color:var(--ink-2)">${questions}</ol></div>` : ""}
+  </div>`;
+}
+function tabValuation(report) {
+  const v = report.valuation || {};
+  const reasoning = (v.reasoning || []).map((r) => `<li><span class="cdot" style="background:var(--ink-3)"></span><span>${esc(r)}</span></li>`).join("");
+  const peers = (v.peers || []).map((p) => `
+    <tr><td>${esc(p.name)}</td><td class="num">${f(p.pe)}</td><td class="num">${f(p.eps)}</td><td class="num">${f(p.ronw)}</td></tr>`).join("");
+  const callVariant = (v.call || "").includes("over") ? "critical" : /attract|under/.test(v.call || "") ? "good" : "warn";
+  const peDots = (v.peers || []).filter((p) => p.pe != null).map((p) => ({ name: p.name, v: p.pe }));
+  const hasStrip = v.issuer_pe != null && (peDots.length || v.peer_pe_median != null);
+  window.__afterTab = () => {
+    if (hasStrip) mountStrip($("viz-pe"), {
+      dots: peDots.concat([{ name: "This issue", v: v.issuer_pe, emph: true }]),
+      median: v.peer_pe_median, label: "Issuer P/E against listed peers",
+    });
+  };
+  return `<div class="grid3">
+    <div class="card span2">
+      <div class="ctitle">Valuation call</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        ${badge(v.call_label || titleCase(v.call) || "Indeterminate", callVariant)}
+      </div>
+      <div style="display:flex;gap:32px;flex-wrap:wrap">
+        ${stat("Issuer P/E (at band)", f(v.issuer_pe))}
+        ${stat("Peer median P/E", f(v.peer_pe_median))}
+        ${stat("Relative", v.relative != null ? f(v.relative, 2) + "×" : "—")}
+      </div>
+      ${hasStrip ? `<div class="ctitle" style="margin-top:18px">Where the issue prices vs its own peer table</div><div class="viz" id="viz-pe"></div>` : ""}
+      <div class="ctitle" style="margin-top:18px">Reasoning</div>
+      <ul class="cases">${reasoning || `<li class="muted">No reasoning recorded.</li>`}</ul>
+    </div>
+    <div class="card">
+      <div class="ctitle">Listed peers (issuer's own table)</div>
+      ${peers ? `<div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Peer</th><th class="num">P/E</th><th class="num">EPS</th><th class="num">RoNW %</th></tr></thead>
+        <tbody>${peers}</tbody></table></div>` : `<p class="muted">No usable peer table extracted.</p>`}
+    </div>
+  </div>`;
+}
+function tabRisks(report) {
+  const r = report.risk || {};
+  const bp = r.boilerplate || {};
+  const items = r.top || (r.findings || []).slice(0, 12);
+  const sevVariant = { critical: "critical", high: "critical", medium: "serious", low: "warn" };
+  const rows = items.map((x) => `
+    <li style="display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--edge)">
+      ${badge(x.severity, sevVariant[x.severity] || "warn")}
+      <span style="font-size:13.5px;color:var(--ink-2)">${esc(x.title)}${x.detail ? `<div class="muted" style="margin-top:2px">${esc(x.detail)}</div>` : ""}${x.source_page ? pageChip([x.source_page]) : ""}</span>
+    </li>`).join("");
+  const forensic = (report.forensic && report.forensic.flags || []).map((x) => `
+    <li style="display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--edge)">
+      ${badge(x.severity || "flag", "critical")}
+      <span style="font-size:13.5px;color:var(--ink-2)">${esc(x.detail || x.rule)}${x.source_page ? pageChip([x.source_page]) : ""}</span>
+    </li>`).join("");
+  return `<div class="grid3">
+    <div class="card">
+      <div class="ctitle">Risk profile</div>
+      <div style="display:flex;gap:32px;flex-wrap:wrap">
+        ${stat("Risk score", `<span style="color:${scoreTone(r.score ?? 50)}">${f(r.score, 0)}</span>`, "higher = fewer/lighter risks")}
+        ${bp.total_factors != null ? stat("Risk factors", f(bp.total_factors, 0), `${f(bp.specific, 0)} specific · ${Math.round((bp.specificity_ratio || 0) * 100)}% specificity`) : ""}
+      </div>
+      <p class="muted" style="margin-top:12px;line-height:1.7">Boilerplate risk language is detected and discounted;
+      only quantified, issuer-specific findings drive the score.</p>
+    </div>
+    <div class="card span2">
+      <div class="ctitle">Top findings</div>
+      <ul class="cases" style="gap:0">${rows || `<li class="muted" style="padding:8px 0">No material findings extracted.</li>`}</ul>
+      ${forensic ? `<div class="ctitle" style="margin-top:16px">Forensic flags (earnings-quality screens)</div>
+        <ul class="cases" style="gap:0">${forensic}</ul>` : ""}
+    </div>
+  </div>`;
+}
+function tabScore(report) {
+  const s = report.scoring || {};
+  const cats = Object.entries(s.categories || {});
+  const catBlock = (key, cat, open) => {
+    const included = (cat.rules || []).filter((r) => r.included);
+    const rules = (cat.rules || []).map((r) => `
+      <div class="rule ${r.included ? "" : "off"}">
+        <div class="top">
+          <span class="rname">${esc(titleCase(r.rule))}</span>
+          ${r.included ? `<span class="pts">${f(r.points, 0)}<span>/${r.max_points} pts</span></span>` : badge("not scored — data missing")}
+        </div>
+        ${r.evidence ? `<p class="ev">${esc(r.evidence)}${pageChip(r.source_pages)}</p>` : ""}
+        <div class="fine">
+          <span>value: <span class="tabular" style="color:var(--ink-2)">${r.value == null ? "—" : esc(typeof r.value === "number" ? (+r.value).toLocaleString("en-IN", { maximumFractionDigits: Math.abs(r.value) >= 100 ? 0 : 2 }) : String(r.value))}</span></span>
+          ${r.thresholds ? `<span>bands: <span style="color:var(--ink-2)">${esc(r.thresholds)}</span></span>` : ""}
+          <span>confidence: <span class="tabular" style="color:var(--ink-2)">${Math.round((r.confidence || 0) * 100)}%</span></span>
+        </div>
+        ${r.rationale ? `<p class="why">Why this rule: ${esc(r.rationale)}</p>` : ""}
+      </div>`).join("");
+    return `<details class="cat" ${open ? "open" : ""}>
+      <summary>
+        <span class="chev">▶</span>
+        <span class="cname">${esc(CATEGORY_LABELS[key] || titleCase(key))}</span>
+        ${progress(cat.score, scoreTone(cat.score))}
+        <span class="cscore">${Math.round(cat.score)}</span>
+        <span class="cmeta">weight ${Math.round((s.weights && s.weights[key] || 0) * 100)}% · ${included.length}/${(cat.rules || []).length} rules · coverage ${Math.round((cat.coverage || 0) * 100)}%</span>
+      </summary>
+      <div class="rules">${rules || `<p class="muted">No rules defined for this category.</p>`}</div>
+    </details>`;
+  };
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 32px">
+        ${stat("Overall score", `<span style="font-size:32px;color:${scoreTone(s.overall)}">${Math.round(s.overall)}</span><span style="font-size:15px;color:var(--ink-3)">/100</span>`)}
+        ${stat("Weight lens", `<span style="font-size:14px">${esc(titleCase(s.lens))}</span>`)}
+        <div class="muted" style="flex:1;min-width:14rem;line-height:1.7">Every point below traces to a rule, the extracted
+        value it was applied to, the scoring bands, and the page the value was read from. Rules with missing inputs are
+        excluded rather than silently scored zero — coverage feeds the confidence level, not the score.</div>
+      </div>
+      ${s.cap_note ? `<p style="margin-top:12px;border:1px solid color-mix(in srgb,var(--serious) 50%,transparent);background:color-mix(in srgb,var(--serious) 10%,transparent);border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.6">${esc(s.cap_note)}</p>` : ""}
+    </div>
+    ${cats.map(([k, c], i) => catBlock(k, c, i === 0)).join("")}`;
+}
+function forecastBlocks(fc) {
+  if (!fc) return `<p class="muted">No forecast available.</p>`;
+  const hz = fc.horizons ? fc : (fc.ml_horizons || null);
+  const rules = fc.rules || null;
+  let html = "";
+  const lg = fc.listing_gain;
+  if (lg && (lg.p_above_offer != null || lg.pct != null)) {
+    let boxes = "";
+    if (lg.p_above_offer != null)
+      boxes += ibox("Lists above offer?", `${Math.round(lg.p_above_offer * 100)}%`,
+        `chance of listing above the offer price — ${Math.round((lg.direction_acc ?? 0) * 100)}% accurate out-of-sample`
+        + `${lg.direction_baseline != null ? `, vs ${Math.round(lg.direction_baseline * 100)}% for always guessing the common case` : ""}`);
+    if (lg.pct != null)
+      boxes += ibox("Listing-day gain", pct(lg.pct),
+        lg.cv_mae_pp != null ? `±${f(lg.cv_mae_pp, 0)}pp typical error vs ±${f(lg.baseline_mae_pp, 0)}pp for guessing the average` : "");
+    html += `<div class="grid2i">${boxes}</div>`;
+    if (lg.no_magnitude)
+      html += `<p class="muted" style="margin-top:8px">${esc(lg.no_magnitude)}</p>`;
+  }
+
+  if (hz && hz.horizons && Object.keys(hz.horizons).length) {
+    // a horizon box shows only what that horizon actually has skill on: sometimes a
+    // number, sometimes just a probability, sometimes both
+    html += `<div class="grid2i" style="margin-top:12px">` + Object.entries(hz.horizons).map(([k, h]) => {
+      const hasPt = h.ret_pct_vs_offer != null;
+      const prob = h.p_above_offer != null ? `${Math.round(h.p_above_offer * 100)}% chance above offer` : null;
+      const err = h.cv_mae_pp != null ? `±${f(h.cv_mae_pp, 0)}pp typical error` : null;
+      return ibox(`${k} vs offer price`,
+        hasPt ? pct(h.ret_pct_vs_offer) : (h.p_above_offer != null ? `${Math.round(h.p_above_offer * 100)}%` : "—"),
+        hasPt ? [prob, err].filter(Boolean).join(" · ")
+              : "probability of ending above the offer price — the size of the move is not predictable here");
+    }).join("") + `</div>`;
+  }
+  if (hz && hz.no_skill && hz.no_skill.horizons && hz.no_skill.horizons.length)
+    html += `<p class="muted" style="margin-top:10px;border:1px solid var(--line);border-radius:6px;padding:8px 10px">
+      <strong>No forecast for ${esc(hz.no_skill.horizons.join(" / "))}.</strong> ${esc(hz.no_skill.why)}</p>`;
+
+  if (hz) {
+    let ee = "";
+    if (hz.entry && hz.entry.expected_bottom_depth_pct_vs_offer != null)
+      ee += ibox("Expected drawdown",
+        pct(hz.entry.expected_bottom_depth_pct_vs_offer),
+        `worst level vs offer within 12m${hz.entry.expected_bottom_session != null
+          ? ` · low around session ~${Math.round(hz.entry.expected_bottom_session)}` : ""}`
+        + `${hz.entry.read ? " — " + esc(hz.entry.read) : ""}`);
+    if (hz.exit && hz.exit.call)
+      ee += ibox("Exit", esc(hz.exit.call),
+        [hz.exit.expected_ret_pct != null ? `expected ${pct(hz.exit.expected_ret_pct)}` : null,
+         hz.exit.expected_peak_pct_vs_offer != null ? `peak ~${pct(hz.exit.expected_peak_pct_vs_offer)}` : null,
+         hz.exit.expected_peak_session != null ? `around session ${f(hz.exit.expected_peak_session, 0)}` : null
+        ].filter(Boolean).join(" · ") || "—");
+    if (ee) html += `<div class="grid2i" style="margin-top:12px">${ee}</div>`;
+    if (hz.inputs_used) html += `<p class="muted" style="margin-top:10px">Inputs used: ${esc(hz.inputs_used.join(", ")) || "training medians only"}.${hz.variant ? ` Model: <strong>${esc(hz.variant)}-listing</strong>.` : ""}${hz.note ? " " + esc(hz.note) : ""}</p>`;
+  }
+  if (rules) {
+    html += `<p class="muted" style="margin-top:10px">Rules engine: listing premium ~${f(rules.listing_open_premium_pct && rules.listing_open_premium_pct.point)}%
+      · P(falls below offer) ${Math.round(((rules.falls_below_offer || {}).probability || 0) * 100)}%
+      · bottom window sessions ${(rules.bottom && rules.bottom.window_sessions || []).join("–") || "—"}</p>`;
+  }
+  return html || `<p class="muted">No forecast available.</p>`;
+}
+function tabForecast(item) {
+  const subs = item.subs;
+  const a = item.actual || {};
+  let subsHtml = "";
+  const subItems = subs ? [["QIB", subs.qib], ["bNII", subs.bnii], ["sNII", subs.snii], ["Retail", subs.rii]]
+    .filter(([, v]) => v != null).map(([label, value]) => ({ label, value })) : [];
+  if (subItems.length) subsHtml = `<div class="ctitle" style="margin-top:18px">Final subscription (×)</div><div class="viz" id="viz-subs"></div>`;
+  let actualHtml = "";
+  if (a.current_ret != null) {
+    actualHtml = `<div class="ctitle" style="margin-top:18px">Actuals so far — if you got allotment</div><div class="grid2i">${
+      ibox("Now vs offer", pct(a.current_ret))}${
+      a.bottom_so_far_pct != null ? ibox("Low so far", pct(a.bottom_so_far_pct), `at session ${f(a.bottom_so_far_session, 0)}`) : ""}${
+      a.ret_6m != null ? ibox("6m actual", pct(a.ret_6m)) : ""}${
+      a.ret_12m != null ? ibox("12m actual", pct(a.ret_12m)) : ""}</div>`;
+
+    // The vs-offer numbers above are the ALLOTTEE's. Allotment is a lottery; most people
+    // buy the listed stock, and their return excludes the day-1 pop entirely. Across ~600
+    // IPOs the median buyer is DOWN 4.8% at 6m and 8.3% at 12m — the opposite sign to the
+    // vs-offer series. Showing only the flattering one would be the single most misleading
+    // thing on this page.
+    const fl = a.from_listing;
+    if (fl) {
+      actualHtml += `<div class="ctitle" style="margin-top:18px">…and if you bought it on listing day</div><div class="grid2i">${
+        fl.current_ret != null ? ibox("Now vs listing price", pct(fl.current_ret)) : ""}${
+        fl.ret_6m != null ? ibox("6m from listing", pct(fl.ret_6m)) : ""}${
+        fl.ret_12m != null ? ibox("12m from listing", pct(fl.ret_12m)) : ""}${
+        fl.ret_24m != null ? ibox("24m from listing", pct(fl.ret_24m)) : ""}</div>
+        <p class="muted" style="margin-top:8px">Allotment is a lottery — most investors buy the listed stock, and their
+        return starts at the listing price, not the offer price. Across ~600 mainboard IPOs the median buyer is
+        <strong>down 4.8% at 6 months and 8.3% at 12 months</strong>, and beats the Nifty only ~42% of the time,
+        even though the same IPOs look positive measured against the offer. Research, not advice.</p>`;
+    }
+  }
+  window.__afterTab = () => {
+    mountForecastPath($("viz-path"), item.forecast, item);
+    if (subItems.length) mountBars($("viz-subs"), { items: subItems, label: "Final subscription by category" });
+  };
+  return `<div class="card">
+    <div class="ctitle">Forecast path — what the model will and won't call</div>
+    <div class="viz" id="viz-path"></div>
+    <p class="muted" style="margin:4px 0 14px">Expected % vs offer price by month since listing — the shaded wash is the
+    model's cross-validated error band, and it is wide on purpose. The path only extends as far as the model has
+    demonstrated skill against a plain "guess the average" baseline; where it stops, we cannot call the outcome.
+    Hover or use arrow keys for point-by-point reads.</p>
+    ${forecastBlocks(item.forecast)}
+    ${subsHtml}
+    ${item.day1_gain != null ? `<div class="grid2i" style="margin-top:12px">${ibox("Day-1 close vs offer", pct(item.day1_gain))}</div>` : ""}
+    ${actualHtml}
+    <p class="muted" style="margin-top:14px;font-style:italic">Heuristic research output with wide error bars — direction and
+    timing bands are the reliable read, not point estimates. Not investment advice.</p>
+    ${item.url ? `<p class="muted" style="margin-top:8px"><a href="${esc(item.url)}" target="_blank" rel="noopener">issue details on Chittorgarh ↗</a></p>` : ""}
+  </div>`;
+}
+
+/* ---------- tracked IPO detail ---------- */
+function reportShell(titleHtml, tabs, renderTab, disclaimer) {
+  const app = $("app");
+  app.innerHTML = `
+    <a class="backlink" href="#/">← All tracked IPOs</a>
+    ${titleHtml}
+    <nav class="tabs" role="tablist">${tabs.map((t, i) =>
+      `<button role="tab" data-tab="${esc(t)}" aria-selected="${i === 0}" class="${i === 0 ? "on" : ""}">${esc(t)}</button>`).join("")}</nav>
+    <div id="tabbody"></div>
+    <p class="muted" style="margin-top:28px;border:1px solid var(--edge);background:var(--surface-1);border-radius:6px;padding:12px;font-size:11px;line-height:1.7">${esc(disclaimer)}</p>`;
+  const body = $("tabbody");
+  const show = (t) => {
+    app.querySelectorAll(".tabs button").forEach((b) => {
+      const on = b.dataset.tab === t;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-selected", on);
+    });
+    window.__afterTab = null;
+    body.innerHTML = renderTab(t);
+    if (typeof window.__afterTab === "function") window.__afterTab(t);
+  };
+  app.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+  show(tabs[0]);
+}
+const DISCLAIMER = "This is an automated document analysis for research and education. It is not investment advice, not a recommendation, and not a SEBI-registered research report. Scores reflect only information inside the prospectus and stated assumptions.";
+async function viewIpo(cgId) {
+  const app = $("app");
+  app.innerHTML = `<p class="muted">loading report…</p>`;
+  window.__afterTab = null;
+  let d;
+  try { d = await loadRadar(); } catch (e) { app.innerHTML = `<p class="muted">data load failed: ${esc(e.message)}</p>`; return; }
+  const item = d.ipos.find((x) => String(x.cg_ipo_id) === String(cgId));
+  if (!item) { app.innerHTML = `<a class="backlink" href="#/">← All tracked IPOs</a><p class="muted">Unknown IPO id ${esc(cgId)}.</p>`; return; }
+  const report = await loadReport(cgId);
+  const score = report ? report.scoring.overall : (item.rhp && item.rhp.score);
+  const meta = report ? report.meta : null;
+  const verdict = report ? report.verdict : (item.rhp && item.rhp.verdict) || "";
+  const title = `<div class="rhead">
+    <div class="scorebox" style="border-color:${score != null ? scoreTone(score) : "var(--baseline)"}">
+      <span class="n">${score != null ? Math.round(score) : "—"}</span><span class="d">/100</span>
+    </div>
+    <div>
+      <h1>${esc(item.name)}</h1>
+      <div class="meta">
+        ${meta ? `<span>${esc(meta.doc_type)} · ${f(meta.page_count, 0)} pages</span>` : `<span>tracked IPO</span>`}
+        ${meta ? badge("confidence: " + meta.confidence, meta.confidence === "high" ? "good" : meta.confidence === "medium" ? "warn" : "serious") : ""}
+        ${meta && meta.coverage != null ? badge(`extraction coverage ${Math.round(meta.coverage * 100)}%`) : ""}
+        ${meta && meta.llm_enhanced ? badge("AI-enhanced narrative", "accent") : ""}
+        ${item.listing ? badge("listed " + item.listing) : item.open ? badge("opens " + item.open, "accent") : ""}
+      </div>
+      ${verdict ? `<div class="verdict">${esc(verdict)}</div>` : ""}
+    </div>
+  </div>`;
+  if (report) {
+    reportShell(title, ["Overview", "Forecast", "Valuation", "Risks", "Score"], (t) =>
+      t === "Overview" ? tabOverview(report, item)
+      : t === "Forecast" ? tabForecast(item)
+      : t === "Valuation" ? tabValuation(report)
+      : t === "Risks" ? tabRisks(report)
+      : tabScore(report), (meta && meta.disclaimer) || DISCLAIMER);
+  } else {
+    reportShell(title, ["Forecast"], () =>
+      `<p class="muted" style="margin-bottom:12px">The RHP for this IPO wasn't found in SEBI's filings archive, so there is
+      no document-level report — the forecast below uses issue and market data only.</p>` + tabForecast(item), DISCLAIMER);
+  }
+}
+
+/* ---------- live analysis (backend mode) ---------- */
+const STAGE_LABELS = {
+  document_processing: "Reading the PDF", section_extraction: "Locating ICDR sections",
+  financial_extraction: "Parsing restated financials", entity_extraction: "Extracting issue details, peers & objects",
+  risk_analysis: "Analyzing risk factors", valuation: "Computing ratios & peer comparison",
+  forensic: "Running earnings-quality screens", promoter_analysis: "Analyzing promoters & governance",
+  scoring: "Scoring", report: "Assembling the report",
+};
+function tabFinancials(report) {
+  const fin = report.financials;
+  if (!fin || !(fin.series || []).length) return `<p class="muted">No financial series extracted.</p>`;
+  const cols = Object.keys(fin.series[0]);
+  const head = cols.map((c) => `<th class="${c === cols[0] ? "" : "num"}">${esc(titleCase(c))}</th>`).join("");
+  const rows = fin.series.map((row) => `<tr>${cols.map((c) =>
+    `<td class="${c === cols[0] ? "" : "num"}">${row[c] == null ? "—" : esc(typeof row[c] === "number" ? (+row[c]).toLocaleString("en-IN", { maximumFractionDigits: 1 }) : String(row[c]))}</td>`).join("")}</tr>`).join("");
+  const ratios = Object.entries(fin.ratios || {}).map(([k, v]) => ibox(titleCase(k), f(v, 2))).join("");
+  const ms = (fin.margin_series || []).filter((r) => r.net_margin != null || r.operating_margin != null);
+  window.__afterTab = () => {
+    if (ms.length < 2) return;
+    const mk = (key, name, colorVar) => ({
+      name, colorHex: cssVar(colorVar),
+      pts: ms.map((r, i) => r[key] != null ? { x: i, v: r[key] } : null).filter(Boolean),
+    });
+    const series = [mk("net_margin", "Net margin", "--series-1"), mk("operating_margin", "Operating margin", "--series-2")]
+      .filter((s) => s.pts.length >= 2);
+    if (!series.length) return;
+    mountLineChart($("viz-margins"), {
+      series, xmax: ms.length - 1, h: 200, mr: 18,
+      xticks: ms.map((r, i) => ({ x: i, label: String(r.fy) })),
+      vFmt: (v) => f(v, 1) + "%", label: "Margin trend across restated years",
+      xTip: (x) => String((ms[Math.round(x)] || {}).fy || ""),
+    });
+  };
+  return `<div class="card">
+    <div class="ctitle">Restated financials ${fin.unit_note ? `<span style="text-transform:none">· ${esc(fin.unit_note)}</span>` : ""}</div>
+    <div class="tblwrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    ${ms.length >= 2 ? `<div class="ctitle" style="margin-top:18px">Margin trend</div><div class="viz" id="viz-margins" style="max-width:34rem"></div>` : ""}
+    ${ratios ? `<div class="ctitle" style="margin-top:18px">Key ratios</div><div class="grid2i">${ratios}</div>` : ""}
+  </div>`;
+}
+function tabPromoters(report) {
+  const p = report.promoter;
+  if (!p) return `<p class="muted">No promoter data extracted.</p>`;
+  return `<div class="grid3">
+    <div class="card span2">
+      <div class="ctitle">Promoters</div>
+      ${(p.names || []).length ? `<ul class="cases">${p.names.map((n) => `<li><span class="cdot" style="background:var(--accent)"></span><span>${esc(n)}</span></li>`).join("")}</ul>` : `<p class="muted">Promoter names not extracted.</p>`}
+      <div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:16px">
+        ${p.pre_issue_pct != null ? stat("Holding (pre-issue)", f(p.pre_issue_pct, 1) + "%") : ""}
+        ${p.post_issue_pct != null ? stat("Holding (post-issue)", f(p.post_issue_pct, 1) + "%") : ""}
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Governance signals</div>
+      <ul class="cases">
+        <li><span class="cdot" style="background:${p.pledging && p.pledging.pledged ? "var(--critical)" : "var(--good)"}"></span>
+          <span>Share pledging: <b>${p.pledging && p.pledging.pledged ? "disclosed" : "none disclosed"}</b></span></li>
+        <li><span class="cdot" style="background:${p.group_company_conflicts ? "var(--warn)" : "var(--good)"}"></span>
+          <span>Group-company conflicts: <b>${p.group_company_conflicts ? "mentioned" : "none found"}</b></span></li>
+      </ul>
+      ${Object.keys(p.board || {}).length ? `<div class="ctitle" style="margin-top:16px">Board</div><div class="grid2i">${
+        Object.entries(p.board).map(([k, v]) => ibox(titleCase(k), f(v, 0))).join("")}</div>` : ""}
+    </div>
+  </div>`;
+}
+function tabSignals(analysisId, report) {
+  const ms = (report.market_signals || {});
+  const fields = [["gmp", "GMP (₹)"], ["sub_qib", "QIB (x)"], ["sub_bnii", "bNII (x)"], ["sub_snii", "sNII (x)"], ["sub_rii", "Retail (x)"], ["day1_gain", "Day-1 close gain (%)"]];
+  window.__afterTab = () => {
+    const btn = $("sig-go");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Working…";
+      const body = {};
+      for (const [k] of fields) {
+        const v = $("sig-" + k).value.trim();
+        body[k] = v ? Number(v) : null;
+      }
+      try {
+        await apiJson(`/api/analyses/${analysisId}/market-signals`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        renderSigOut(await apiJson(`/api/analyses/${analysisId}/listing-forecast`));
+      } catch (e) { $("sig-out").innerHTML = `<p class="muted" style="color:var(--critical)">${esc(e.message)}</p>`; }
+      btn.disabled = false; btn.textContent = "Save & forecast";
+    });
+    if (!$("sig-out").innerHTML) {
+      apiJson(`/api/analyses/${analysisId}/listing-forecast`).then(renderSigOut).catch(() => {});
+    }
+  };
+  const renderSigOut = (fc) => {
+    $("sig-out").innerHTML = `<div class="viz" id="viz-livepath"></div>` + forecastBlocks(fc) +
+      (fc.disclaimer ? `<p class="muted" style="margin-top:10px;font-style:italic">${esc(fc.disclaimer)}</p>` : "");
+    mountForecastPath($("viz-livepath"), fc, null);
+  };
+  return `<div class="card">
+    <div class="ctitle">Market signals &amp; forecast (optional, user-supplied)</div>
+    <p class="muted" style="margin-bottom:12px;line-height:1.7">GMP, subscription multiples and the listing-day close live
+    outside the prospectus and are never part of the fundamental score. Enter whatever you have — all knowable within the
+    first 2–3 days of listing — and the forecast engines combine them with this report's RHP features. Supplying the
+    listing-day close matters most: it switches the model from the pre-listing variant to the post-listing one, which is
+    the only one that can call a 6-month return at all.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+      ${fields.map(([k, label]) => `<label style="font-size:12px;color:var(--ink-2)">${esc(label)}
+        <input class="txt" id="sig-${k}" inputmode="decimal" value="${ms[k] != null ? esc(ms[k]) : ""}"></label>`).join("")}
+      <button class="btn" id="sig-go">Save &amp; forecast</button>
+    </div>
+    <div id="sig-out" style="margin-top:16px"></div>
+  </div>`;
+}
+function tabQA(analysisId) {
+  window.__afterTab = () => {
+    const btn = $("qa-go");
+    if (!btn) return;
+    const go = async () => {
+      const q = $("qa-q").value.trim();
+      if (!q) return;
+      btn.disabled = true; btn.textContent = "Thinking…";
+      try {
+        const res = await apiJson(`/api/analyses/${analysisId}/qa`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+        const cites = (res.citations || []).map((c) => `${esc(c.section)}${c.pages && c.pages.length ? " p." + c.pages.filter((p) => p != null).join(", ") : ""}`).join(" · ");
+        $("qa-out").innerHTML = `<div class="qa-answer">${esc(res.answer || res.error || "No answer.")}${cites ? `<div class="muted" style="margin-top:8px">Sources: ${cites}</div>` : ""}</div>`;
+      } catch (e) { $("qa-out").innerHTML = `<p class="muted" style="color:var(--critical);margin-top:10px">${esc(e.message)}</p>`; }
+      btn.disabled = false; btn.textContent = "Ask";
+    };
+    btn.addEventListener("click", go);
+    $("qa-q").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  };
+  return `<div class="card">
+    <div class="ctitle">Document Q&amp;A</div>
+    <p class="muted" style="margin-bottom:10px;line-height:1.7">Answers are constrained to extracted evidence with page
+    citations, and need the AI layer enabled on the engine (an Anthropic key or Claude CLI). Without it this returns an error.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <input class="txt wide" id="qa-q" style="flex:1;min-width:14rem;margin:0" placeholder="e.g. What are the objects of the offer?">
+      <button class="btn" id="qa-go">Ask</button>
+    </div>
+    <div id="qa-out"></div>
+  </div>`;
+}
+async function viewLive(analysisId) {
+  const app = $("app");
+  window.__afterTab = null;
+  app.innerHTML = `<a class="backlink" href="#/">← Back</a><div class="card" style="max-width:36rem;margin:0 auto">
+    <div style="font-weight:600" id="lv-name">Analyzing…</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px">${progress(0)}<span class="tabular" style="font-size:13px;color:var(--ink-2)" id="lv-pct">0%</span></div>
+    <div class="muted" style="margin-top:8px" id="lv-stage">queued…</div>
+  </div>`;
+  const bar = app.querySelector(".progress > div");
+  let alive = true;
+  window.__cancelLive = () => { alive = false; };
+  const tick = async () => {
+    if (!alive) return;
+    let s;
+    try { s = await apiJson(`/api/analyses/${analysisId}`); }
+    catch (e) {
+      const el = $("lv-stage");
+      if (el) el.textContent = "engine unreachable: " + e.message + " — retrying…";
+      setTimeout(tick, 4000);
+      return;
+    }
+    if (!alive) return;
+    if (s.status === "failed") {
+      app.innerHTML = `<a class="backlink" href="#/">← Back</a><div class="card" style="max-width:36rem;margin:0 auto;text-align:center">
+        <div style="font-weight:600;color:var(--critical)">Analysis failed</div>
+        <p style="margin-top:8px;font-size:13.5px;color:var(--ink-2)">${esc(s.error || "Unknown error")}</p>
+        <p class="muted" style="margin-top:8px">Scanned/image-only PDFs need OCR enabled on the engine (ENABLE_OCR=1 + tesseract).</p></div>`;
+      return;
+    }
+    if (s.status !== "completed") {
+      const el = $("lv-name");
+      if (el) {
+        el.textContent = "Analyzing: " + (s.filename || "");
+        bar.style.width = Math.round(s.progress * 100) + "%";
+        $("lv-pct").textContent = Math.round(s.progress * 100) + "%";
+        $("lv-stage").textContent = "⟳ " + (STAGE_LABELS[s.stage] || s.stage || "queued") + "…";
+      }
+      setTimeout(tick, 2000);
+      return;
+    }
+    let report;
+    try { report = await apiJson(`/api/analyses/${analysisId}/report`); }
+    catch (e) { $("lv-stage").textContent = "report load failed: " + e.message; return; }
+    if (!alive) return;
+    const title = `<div class="rhead">
+      <div class="scorebox" style="border-color:${scoreTone(report.scoring.overall)}">
+        <span class="n">${Math.round(report.scoring.overall)}</span><span class="d">/100</span>
+      </div>
+      <div>
+        <h1>${esc(report.meta.company_name || s.filename)}</h1>
+        <div class="meta">
+          <span>${esc(report.meta.doc_type)} · ${f(report.meta.page_count, 0)} pages</span>
+          ${s.is_demo ? badge("sample document", "accent") : ""}
+          ${badge("confidence: " + report.meta.confidence, report.meta.confidence === "high" ? "good" : report.meta.confidence === "medium" ? "warn" : "serious")}
+          ${report.meta.llm_enhanced ? badge("AI-enhanced narrative", "accent") : ""}
+          ${badge("live analysis", "good")}
+        </div>
+        <div class="verdict">${esc(report.verdict)}</div>
+      </div>
+    </div>`;
+    const tabs = ["Overview", "Financials", "Valuation", "Risks", "Promoters", "Score", "Signals & Forecast", "Q&A"];
+    reportShell(title, tabs, (t) => {
+      window.__afterTab = null;
+      return t === "Overview" ? tabOverview(report, null)
+        : t === "Financials" ? tabFinancials(report)
+        : t === "Valuation" ? tabValuation(report)
+        : t === "Risks" ? tabRisks(report)
+        : t === "Promoters" ? tabPromoters(report)
+        : t === "Score" ? tabScore(report)
+        : t === "Signals & Forecast" ? tabSignals(analysisId, report)
+        : tabQA(analysisId);
+    }, report.meta.disclaimer || DISCLAIMER);
+  };
+  void tick();
+}
+
+/* ---------- router ---------- */
+function route() {
+  if (typeof window.__cancelLive === "function") { window.__cancelLive(); window.__cancelLive = null; }
+  window.__afterTab = null;
+  const h = location.hash || "#/";
+  let m;
+  if ((m = h.match(/^#\/ipo\/([^/]+)/))) void viewIpo(decodeURIComponent(m[1]));
+  else if ((m = h.match(/^#\/live\/([^/]+)/))) void viewLive(decodeURIComponent(m[1]));
+  else { void viewHome(); if (h === "#upload" || h === "#radar") setTimeout(() => { const el = $(h.slice(1)); if (el) el.scrollIntoView(); }, 60); }
+}
+document.addEventListener("click", (e) => {
+  const nav = e.target.closest("[data-nav]");
+  if (nav) location.hash = nav.dataset.nav;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches && e.target.matches("[data-nav]")) location.hash = e.target.dataset.nav;
+});
+$("nav-analyze").addEventListener("click", (e) => {
+  e.preventDefault();
+  if (location.hash && location.hash !== "#/" && !location.hash.startsWith("#upload")) { location.hash = "#/"; setTimeout(() => { const el = $("upload"); if (el) el.scrollIntoView(); }, 80); }
+  else { const el = $("upload"); if (el) el.scrollIntoView({ behavior: "smooth" }); }
+});
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

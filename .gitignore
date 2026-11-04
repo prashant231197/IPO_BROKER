@@ -1,0 +1,30 @@
+# local runtime state — never committed
+backend/rhp.db
+backend/uploads/
+backend/data/
+backend/sample_data/*.pdf
+sebi_rhps_archive/
+test/
+__pycache__/
+*.pyc
+.pytest_cache/
+storage/
+.venv_termux/
+.venv/
+
+# frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# misc
+.env
+*.log
+
+# internal working notes / AI-agent scaffolding
+frontend/CLAUDE.md
+dossier/
+.project-memory/
+
+# raw scraped pages (re-parse without refetching) — large, rebuildable
+data/cache/
