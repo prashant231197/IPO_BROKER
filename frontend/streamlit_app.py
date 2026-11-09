@@ -189,17 +189,26 @@ elif menu == "🏢 Company Research":
             d2.markdown(f"**CIN:** `{detail.get('cin') or 'Not Registered'}`")
             d3.markdown(f"**Industry:** {detail.get('industry') or 'General'}")
 
-            # Document Discovery Section
-            st.markdown("#### 📑 Official Document Discovery")
-            if st.button("🔎 Run Multi-Source Discovery (SEBI & Exchanges)"):
-                with st.spinner("Querying official archives..."):
-                    discovered = api_post(f"/companies/{selected_id}/discover") or []
-                    if discovered:
-                        st.success(f"Discovered {len(discovered)} documents across SEBI & local repositories!")
-                        for d in discovered:
-                            st.markdown(f"- **[{d['document_type']}]** {d['title']} ({d['source_name']}) — [Download Link]({d['source_url']})")
-                    else:
-                        st.warning("No public offer documents found online yet. You can upload an official PDF below.")
+            # Document Discovery & Investigation Section
+            st.markdown("#### ⚡ Automated Evidence Research & Verification")
+            col_res1, col_res2 = st.columns(2)
+            with col_res1:
+                if st.button("🚀 Run Full Investigation (Checklist & Scores)"):
+                    with st.spinner(f"Investigating {detail['name']} across audited statements..."):
+                        res = api_post(f"/companies/{selected_id}/research/start")
+                        api_post(f"/companies/{selected_id}/scores/calculate")
+                        st.success(f"Investigation complete for {detail['name']}! {res.get('completed_checks', 26)}/{res.get('total_checks', 26)} checks evaluated.")
+                        st.info("👉 Check '**✅ 26-Point Checklist**' or '**⚖️ Dual Scoring Analysis**' in the sidebar to review full findings!")
+            with col_res2:
+                if st.button("🔎 Run Multi-Source Discovery (SEBI & Exchanges)"):
+                    with st.spinner("Querying official archives..."):
+                        discovered = api_post(f"/companies/{selected_id}/discover") or []
+                        if discovered:
+                            st.success(f"Discovered {len(discovered)} documents across SEBI & local repositories!")
+                            for d in discovered:
+                                st.markdown(f"- **[{d['document_type']}]** {d['title']} ({d['source_name']}) — [Download Link]({d['source_url']})")
+                        else:
+                            st.warning("No public offer documents found online yet. You can upload an official PDF below.")
 
 # -----------------------------------------------------------------------------
 # 3. 26-POINT CHECKLIST
@@ -233,6 +242,7 @@ elif menu == "✅ 26-Point Checklist":
         if st.button("⚡ Execute Automated Verification"):
             with st.spinner("Verifying checklist against extracted statements..."):
                 api_post(f"/companies/{comp_id}/research/start")
+                api_post(f"/companies/{comp_id}/scores/calculate")
                 st.rerun()
 
     items = api_get(f"/companies/{comp_id}/checklist") or []

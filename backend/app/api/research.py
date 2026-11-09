@@ -44,6 +44,14 @@ def start_company_research(
     plan = repo.create_or_get_research_plan(company.id)
     executor = ChecklistExecutor(db)
     result = executor.execute_plan(plan.id)
+
+    # Automatically calculate dual scores as well
+    from .scoring import calculate_scores
+    try:
+        calculate_scores(company_id=company.id, db=db)
+    except Exception:
+        pass
+
     return result
 
 
