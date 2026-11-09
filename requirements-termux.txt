@@ -1,7 +1,7 @@
 # Lightweight dependencies for Android Termux & Resource-Constrained Environments
 fastapi>=0.115.0
 uvicorn>=0.30.0
-sqlalchemy>=2.0.30
+sqlalchemy>=2.0.30,<2.1.0
 pydantic>=2.7.0
 streamlit>=1.35.0
 pypdf>=4.2.0
